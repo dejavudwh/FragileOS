@@ -43,4 +43,9 @@ public class Loader {
             e.printStackTrace();
         }
     }
+
+    public static void main(String[] args) {
+        Loader loader = new Loader("../boot.bat");
+        loader.makeFloppy();
+    }
 }
