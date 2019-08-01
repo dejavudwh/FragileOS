@@ -1,1 +1,3 @@
 /simulationfloppy/*.class
+*.bat
+*.o

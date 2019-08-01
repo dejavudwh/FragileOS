@@ -10,14 +10,14 @@ entry:
     mov si, ax
 
 read_floppy:    
-    mov CH, 1   ;Cylinder number
-    mov DH, 0   ;Head number
-    mov CL, 2   ;Sector number
+    mov CH, 1   ;cylinder number
+    mov DH, 0   ;head number
+    mov CL, 2   ;sector number
 
     mov BX, LOAD_ADDR  ; 
     mov AH, 0x02    ;read floppy opt
     mov AL, 20  ;read floppy number
-    mov DL 0    ;drive number
+    mov DL, 0    ;drive number
 
     int 0x13    ;call bios read floppy
 
