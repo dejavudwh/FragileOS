@@ -12,7 +12,7 @@ public class Loader {
     }
 
     public void makeFloppy() {
-        writeFileToFloppy("../kernel.bat", false, 1, 2);
+        writeFileToFloppy("../kernel/kernel.bat", false, 1, 2);
         floppyDisk.makeFloppy("../FragileOS.img");
     }
 
@@ -45,7 +45,7 @@ public class Loader {
     }
 
     public static void main(String[] args) {
-        Loader loader = new Loader("../boot.bat");
+        Loader loader = new Loader("../boot/boot.bat");
         loader.makeFloppy();
     }
 }
