@@ -23,9 +23,19 @@ SelectorStack     equ   LABEL_DESC_STACK  -  LABEL_GDT
 SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
 
 LABEL_IDT:
-%rep  255
+%rep  33
       Gate  SelectorCode32,   SpuriousHandler,  0,    DA_386IGate
 %endrep
+
+.021h:
+      Gate  SelectorCode32,   KeyBoardHandler,  0,    DA_386IGate
+
+%rep  10
+      Gate  SelectorCode32,   SpuriousHandler,  0,    DA_386IGate
+%endrep
+
+.2CH:
+      Gate  SelectorCode32,   mouseHandler,     0,    DA_386IGate
 
 IdtLen      equ   $ - LABEL_IDT
 IdtPtr      dw    IdtLen - 1
@@ -113,11 +123,11 @@ init8259A:
      out   0A1h, al
      call  io_delay
 
-     mov   al, 11111101b
-     out   21h, al
+     mov   al, 11111001b  
+     out   021h, al
      call  io_delay
 
-     mov   al, 11111111b
+     mov   al, 11101111b  
      out   0A1h, al
      call  io_delay
 
@@ -140,6 +150,9 @@ LABEL_SEG_CODE32:
      mov  ax, SelectorVram
      mov  ds,  ax
 
+     mov  ax, SelectorVideo
+     mov  gs, ax
+
      sti 
 
 %include "desktop.asm"
@@ -148,10 +161,43 @@ LABEL_SEG_CODE32:
 
 _spurious_handler:
 SpuriousHandler  equ _spurious_handler - $$
-    
-     call _intHandlerFromC
-    
      iretd      
+
+_keyboard_hadnler:
+KeyBoardHandler equ _keyboard_hadnler - $$
+      push  es
+      push  ds
+      pushad
+      mov   eax,  esp
+      push eax
+
+      call _intHandlerFromC
+
+      pop   eax
+      mov   esp,  eax
+      popad
+      pop   ds
+      pop   es
+      iretd
+
+_mouse_handler:
+mouseHandler equ _mouse_handler - $$
+      push es
+     push ds
+     pushad
+     mov  eax, esp
+     push eax
+
+     call _intHandlerForMouse
+    
+     pop  eax
+     mov  esp, eax
+     popad
+     pop  ds
+     pop  es
+     iretd
+
+
 
 _io_hlt:
       HLT
