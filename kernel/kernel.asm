@@ -76,6 +76,7 @@ LABEL_SEG_CODE32:
      mov  ds,  ax
 
 %include "desktop.asm"
+
 _io_hlt:        
       HLT
       RET

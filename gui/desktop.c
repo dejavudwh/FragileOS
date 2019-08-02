@@ -37,8 +37,15 @@ static char fontA[16] = {0x00, 0x18, 0x18, 0x18, 0x18, 0x24, 0x24, 0x24,
                          0x24, 0x7e, 0x42, 0x42, 0x42, 0xe7, 0x00, 0x00};
 
 extern char systemFont[16];
+static char mcursor[256];
 
 void showFont8(char *vram, int xsize, int x, int y, char c, char *font);
+
+void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
+              char *buf, int bxsize);
+
+void init_mouse_cursor(char *mouse, char bc);
+void intHandlerFromC(char *esp);
 
 void drawDesktop() {
   struct BOOTINFO bootInfo;
@@ -48,28 +55,31 @@ void drawDesktop() {
 
   init_palette();
 
-  boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29);
+  boxfill8(vram, xsize, COL8_000084, 0, 0, xsize - 1, ysize - 29);
   boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 28, xsize - 1, ysize - 28);
   boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 27, xsize - 1, ysize - 27);
   boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 26, xsize - 1, ysize - 1);
 
   boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 24, 59, ysize - 24);
   boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 24, 2, ysize - 4);
-  boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 59, ysize - 4);
-  boxfill8(vram, xsize, COL8_848484, 59, ysize - 23, 59, ysize - 5);
+  boxfill8(vram, xsize, COL8_000084, 3, ysize - 4, 59, ysize - 4);
+  boxfill8(vram, xsize, COL8_000084, 59, ysize - 23, 59, ysize - 5);
   boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 59, ysize - 3);
   boxfill8(vram, xsize, COL8_000000, 60, ysize - 24, 60, ysize - 3);
 
-  boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 24, xsize - 4,
+  boxfill8(vram, xsize, COL8_000084, xsize - 47, ysize - 24, xsize - 4,
            ysize - 24);
-  boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 23, xsize - 47,
+  boxfill8(vram, xsize, COL8_000084, xsize - 47, ysize - 23, xsize - 47,
            ysize - 4);
   boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize - 3, xsize - 4,
            ysize - 3);
   boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 24, xsize - 3,
            ysize - 3);
 
-  showString(vram, xsize, 72, 8, COL8_FFFFFF, "Fragile OS");
+  showString(vram, xsize, 125, 60, COL8_FFFFFF, "Fragile OS");
+
+  init_mouse_cursor(mcursor, COL8_008484);
+  putblock(vram, xsize, 16, 16, 80, 80, mcursor, 16);
 
   for (;;) {
     io_hlt();
@@ -159,4 +169,38 @@ void showString(char *vram, int xsize, int x, int y, char color,
     showFont8(vram, xsize, x, y, color, systemFont + *s * 16);
     x += 8;
   }
+}
+
+void init_mouse_cursor(char *mouse, char bc) {
+  static char cursor[16][16] = {
+      "**************..", "*OOOOOOOOOOO*...", "*OOOOOOOOOO*....",
+      "*OOOOOOOOO*.....", "*OOOOOOOO*......", "*OOOOOOO*.......",
+      "*OOOOOOO*.......", "*OOOOOOOO*......", "*OOOO**OOO*.....",
+      "*OOO*..*OOO*....", "*OO*....*OOO*...", "*O*......*OOO*..",
+      "**........*OOO*.", "*..........*OOO*", "............*OO*",
+      ".............***"};
+
+  int x, y;
+  for (y = 0; y < 16; y++) {
+    for (x = 0; x < 16; x++) {
+      if (cursor[y][x] == '*') {
+        mouse[y * 16 + x] = COL8_000000;
+      }
+      if (cursor[y][x] == 'O') {
+        mouse[y * 16 + x] = COL8_FFFFFF;
+      }
+      if (cursor[y][x] == '.') {
+        mouse[y * 16 + x] = bc;
+      }
+    }
+  }
+}
+
+void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
+              char *buf, int bxsize) {
+  int x, y;
+  for (y = 0; y < pysize; y++)
+    for (x = 0; x < pxsize; x++) {
+      vram[(py0 + y) * vxsize + (px0 + x)] = buf[y * bxsize + x];
+    }
 }
