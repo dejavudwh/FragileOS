@@ -12,7 +12,7 @@ public class Loader {
     }
 
     public void makeFloppy() {
-        writeFileToFloppy("../kernel/kernel.bat", false, 1, 2);
+        writeFileToFloppy("../kernel/kernel.bat", false, 1, 1);
         floppyDisk.makeFloppy("../FragileOS.img");
     }
 
@@ -32,8 +32,8 @@ public class Loader {
                 floppyDisk.writeFloppy(Floppy.MagneticHead.MagneticHead0, cylinder, beginSec, buf);
 
                 System.out.println("Load file " + pathName.substring(3) + " to floppy with cylinder: " + cylinder + " and sector:" + beginSec);
-                if (beginSec > MAX_SECTOR_NUM) {
-                    beginSec = 1;
+                if (beginSec >= MAX_SECTOR_NUM) {
+                    beginSec = 0;
                     cylinder++;
                 }
 

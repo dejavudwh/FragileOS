@@ -1,32 +1,44 @@
-org 0x7c00
+org  0x7c00;
 
-LOAD_ADDR EQU 0x9000
+LOAD_ADDR  EQU  0X9000
+
+jmp  entry
 
 entry:
-    mov ax, 0
-    mov ss, ax
-    mov ds, ax
-    mov es, ax
-    mov si, ax
+    mov  ax, 0
+    mov  ss, ax
+    mov  ds, ax
+    mov  es, ax
+    mov  si, ax
+    
+    mov          BX, LOAD_ADDR       ; ES:BX 数据存储缓冲区
+read_floppy:
+    cmp          byte [load_count], 0
+    je           begin_load
 
-read_floppy:    
-    mov CH, 1   ;cylinder number
-    mov DH, 0   ;head number
-    mov CL, 2   ;sector number
+    mov          CH, 1         
+    mov          DH, 0         
+    mov          CL, 1        
 
-    mov BX, LOAD_ADDR  ; 
-    mov AH, 0x02    ;read floppy opt
-    mov AL, 25  ;read floppy number
-    mov DL, 0    ;drive number
+    mov          AH, 0x02       
+    mov          AL,  18        
+    mov          DL, 0          
+                              
+    INT          0x13           
 
-    int 0x13    ;call bios read floppy
+    inc          CH
+    dec          byte [load_count]
+   
+    JC           fin
+    jmp          read_floppy
+    
+begin_load:
+    jmp          LOAD_ADDR
 
-    jc fin
 
-    jmp LOAD_ADDR
+load_count db 2  
 
 fin:
     HLT
-    jmp fin
-
+    jmp  fin
 
