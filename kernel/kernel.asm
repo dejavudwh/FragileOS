@@ -209,9 +209,15 @@ _io_load_eflags:
         ret
 
 _io_store_eflags:
-        mov eax, [esp + 4]
+        mov  eax, [esp + 4]
         push eax
         popfd
+        ret
+
+_show_char:
+        mov  ah, 0Ch
+        mov  al, 'U'
+        mov  [gs:((80 * 0 + 67) * 2)], ax
         ret
 
 %include "fonts.inc"

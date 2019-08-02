@@ -20,7 +20,7 @@ void io_cli(void);
 void io_out(int port, int data);
 int io_load_eflags(void);
 void io_store_eflags(int eflags);
-
+void show_char(void);
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
@@ -47,18 +47,19 @@ void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
 void init_mouse_cursor(char *mouse, char bc);
 void intHandlerFromC(char *esp);
 
+static struct BOOTINFO bootInfo;
+
 void drawDesktop() {
-  struct BOOTINFO bootInfo;
   initBootInfo(&bootInfo);
   char *vram = bootInfo.vgaRam;
   int xsize = bootInfo.screenX, ysize = bootInfo.screenY;
 
   init_palette();
 
-  boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29);
-  boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 28, xsize - 1, ysize - 28);
+  boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 17);
+  boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 16, xsize - 1, ysize - 16);
   boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 27, xsize - 1, ysize - 27);
-  boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 26, xsize - 1, ysize - 1);
+  boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 14, xsize - 1, ysize - 1);
 
   boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 24, 59, ysize - 24);
   boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 24, 2, ysize - 4);
@@ -203,4 +204,16 @@ void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
     for (x = 0; x < pxsize; x++) {
       vram[(py0 + y) * vxsize + (px0 + x)] = buf[y * bxsize + x];
     }
+}
+
+void intHandlerFromC(char *esp) {
+  char *vram = bootInfo.vgaRam;
+  int xsize = bootInfo.screenX, ysize = bootInfo.screenY;
+  boxfill8(vram, xsize, COL8_000000, 0, 0, 32 * 8 - 1, 15);
+  showString(vram, xsize, 0, 0, COL8_FFFFFF, "PS/2 keyboard");
+
+  for (;;) {
+    io_hlt();
+  }
+  show_char();
 }

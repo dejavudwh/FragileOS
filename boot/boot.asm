@@ -16,7 +16,7 @@ read_floppy:
 
     mov BX, LOAD_ADDR  ; 
     mov AH, 0x02    ;read floppy opt
-    mov AL, 20  ;read floppy number
+    mov AL, 25  ;read floppy number
     mov DL, 0    ;drive number
 
     int 0x13    ;call bios read floppy
