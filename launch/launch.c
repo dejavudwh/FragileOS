@@ -1,3 +1,5 @@
+#include "../memory/mem_util.h"
+
 #define COL8_000000 0
 #define COL8_FF0000 1
 #define COL8_00FF00 2
@@ -35,6 +37,8 @@ struct BOOTINFO {
     char* vgaRam;
     short screenX, screenY;
 };
+
+struct MEMMAN* memman = (struct MEMMAN*)0x100000;
 
 void initBootInfo(struct BOOTINFO* pBootInfo);
 
@@ -146,6 +150,14 @@ void launch(void) {
     int memCnt = get_memory_block_count();
     char* pStr = intToHexStr(memCnt);
     struct AddrRangeDesc* memDesc = (struct AddrRangeDesc*)get_addr_buffer();
+
+    memman_init(memman);
+    memman_free(memman, 0x001080000, 0x3FEE8000);
+    int memtotal = memman_total(memman) / (1024 * 1024);
+    char* pMemTotal = intToHexStr(memtotal);
+    showString(vram, xsize, 0, 0, COL8_FFFFFF, "total mem is: ");
+    showString(vram, xsize, 17 * 8, 0, COL8_FFFFFF, pMemTotal);
+    showString(vram, xsize, 28 * 8, 0, COL8_FFFFFF, " MB");
 
     io_sti();
     enable_mouse(&mdec);
