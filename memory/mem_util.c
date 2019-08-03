@@ -7,8 +7,8 @@ void memman_init(struct MEMMAN *man) {
     man->losts = 0;
 }
 
-unsigned int memman_tatol(struct MENMAN *man) {
-    unsigned t = 0;
+unsigned int memman_total(struct MEMMAN *man) {
+    unsigned int t = 0;
     for (int i = 0; i < man->frees; i++) {
         t += man->free[i].size;
     }

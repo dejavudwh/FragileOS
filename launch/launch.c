@@ -148,7 +148,6 @@ void launch(void) {
     putblock(vram, xsize, 16, 16, mx, my, mcursor, 16);
 
     int memCnt = get_memory_block_count();
-    char* pStr = intToHexStr(memCnt);
     struct AddrRangeDesc* memDesc = (struct AddrRangeDesc*)get_addr_buffer();
 
     memman_init(memman);

@@ -1,17 +1,20 @@
 %include "pm.inc"
 
-org   0x9000
+org   8000h
 
 VRAM_ADDRESS  equ  0x000a0000
+
 
 jmp   LABEL_BEGIN
 
 [SECTION .gdt]
-LABEL_GDT:          Descriptor        0,            0,                   0  
-LABEL_DESC_CODE32:  Descriptor        0,      SegCode32Len - 1,       DA_C + DA_32
-LABEL_DESC_VIDEO:   Descriptor        0B8000h,         0ffffh,            DA_DRW
-LABEL_DESC_VRAM:    Descriptor        0,         0ffffffffh,            DA_DRW
-LABEL_DESC_STACK:   Descriptor        0,             TopOfStack,        DA_DRWA+DA_32
+LABEL_GDT:          Descriptor        0,            0,                 0  
+LABEL_DESC_CODE32:  Descriptor        0,            0fffffh,           DA_C | DA_32 | DA_LIMIT_4K
+LABEL_DESC_VIDEO:   Descriptor        0B8000h,      0fffffh,           DA_DRW
+LABEL_DESC_VRAM:    Descriptor        0,            0fffffh,           DA_DRW | DA_LIMIT_4K
+
+LABEL_DESC_STACK:   Descriptor        0,            TopOfStack,        DA_DRWA | DA_32
+LABEL_DESC_FONT:    Descriptor        0,            0fffffh,           DA_DRW | DA_LIMIT_4K  
 
 GdtLen     equ    $ - LABEL_GDT
 GdtPtr     dw     GdtLen - 1
@@ -21,6 +24,7 @@ SelectorCode32    equ   LABEL_DESC_CODE32 -  LABEL_GDT
 SelectorVideo     equ   LABEL_DESC_VIDEO  -  LABEL_GDT
 SelectorStack     equ   LABEL_DESC_STACK  -  LABEL_GDT
 SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
+SelectorFont      equ   LABEL_DESC_FONT - LABEL_GDT
 
 LABEL_IDT:
 %rep  33
@@ -40,6 +44,7 @@ LABEL_IDT:
 IdtLen  equ $ - LABEL_IDT
 IdtPtr  dw  IdtLen - 1
         dd  0
+
 
 [SECTION  .s16]
 [BITS  16]
@@ -64,6 +69,7 @@ ComputeMemory:
      cmp   ebx, 0
      jne   .loop
      jmp   LABEL_MEM_CHK_OK
+
 LABEL_MEM_CHK_FAIL:
     mov    dword [dwMCRNumber], 0
 
@@ -82,6 +88,15 @@ LABEL_MEM_CHK_OK:
      mov   byte [LABEL_DESC_CODE32 + 7], ah
 
      xor   eax, eax
+     mov   ax,  cs
+     shl   eax, 4
+     add   eax, LABEL_SYSTEM_FONT
+     mov   word [LABEL_DESC_FONT + 2], ax
+     shr   eax, 16
+     mov   byte [LABEL_DESC_FONT + 4], al
+     mov   byte [LABEL_DESC_FONT + 7], ah
+
+     xor   eax, eax
      mov   ax, ds
      shl   eax, 4
      add   eax,  LABEL_GDT
@@ -90,7 +105,7 @@ LABEL_MEM_CHK_OK:
 
      lgdt  [GdtPtr]
 
-     cli   ;关中断
+     cli   
 
      call init8259A
 
@@ -142,11 +157,11 @@ init8259A:
      out  0A1h, al
      call io_delay
 
-     mov  al, 11111001b ;允许键盘中断
+     mov  al, 11111001b 
      out  021h, al
      call io_delay
 
-     mov  al, 11101111b ;允许鼠标中断
+     mov  al, 11101111b 
      out  0A1h, al
      call io_delay
 
@@ -159,10 +174,10 @@ io_delay:
      nop
      ret
 
-
 [SECTION .s32]
 [BITS  32]
 LABEL_SEG_CODE32:
+
      mov  ax, SelectorStack
      mov  ss, ax
      mov  esp, TopOfStack
@@ -174,9 +189,8 @@ LABEL_SEG_CODE32:
      mov  gs, ax
         
      sti
-    
+
      %include "ckernel.asm"
-     
      jmp  $
 
 _SpuriousHandler:
@@ -192,14 +206,13 @@ KeyBoardHandler equ _KeyBoardHandler - $$
      push eax
 
      call _intHandlerFromC
-
+    
      pop  eax
      mov  esp, eax
      popad
      pop  ds
      pop  es
      iretd
-
 
 _mouseHandler:
 mouseHandler equ _mouseHandler - $$
@@ -211,7 +224,6 @@ mouseHandler equ _mouseHandler - $$
 
      call _intHandlerForMouse
     
-
      pop  eax
      mov  esp, eax
      popad
@@ -219,7 +231,19 @@ mouseHandler equ _mouseHandler - $$
      pop  es
      iretd
 
-_io_hlt:  ;void io_hlt(void);
+
+_get_font_data:
+    mov ax, SelectorFont
+    mov es, ax
+    xor edi, edi
+    mov edi, [esp + 4] ;char
+    shl edi, 4
+    add edi, [esp + 8]
+    xor eax, eax
+    mov al, byte [es:edi]
+    ret
+
+_io_hlt:  
   HLT
   RET
 
@@ -284,23 +308,31 @@ _io_store_eflags:
 _get_memory_block_count:
     mov  eax, [dwMCRNumber]
     ret
-  
-_get_addr_buffer:
-    mov eax,  MemChkBuf
-    ret  
 
-%include "fonts.inc"
+_get_addr_buffer:
+    mov  eax, MemChkBuf
+    ret
+
 
 SegCode32Len   equ  $ - LABEL_SEG_CODE32
 
-MemChkBuf: times 256 db 0
-dwMCRNumber:   dd 0
+
+[SECTION .data]
+ALIGN 32
+[BITS 32]
+  MemChkBuf: times 256 db 0
+  dwMCRNumber:   dd 0
+
 
 [SECTION .gs]
 ALIGN 32
 [BITS 32]
 LABEL_STACK:
-times 512  db 0
-TopOfStack  equ  $ - LABEL_STACK
+  times 512  db 0
+  TopOfStack  equ  $ - LABEL_STACK
 
 
+LABEL_SYSTEM_FONT:
+%include "fonts.inc"
+
+SystemFontLength equ $ - LABEL_SYSTEM_FONT

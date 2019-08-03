@@ -16,8 +16,8 @@ public class LinkAssembly {
 
     public LinkAssembly() {
         try {
-			fileReader = new BufferedReader(new FileReader("../gui/desktop.asm"));
-			File f = new File("../gui/desktop.asm");
+			fileReader = new BufferedReader(new FileReader("../kernel/ckernel.asm"));
+			File f = new File("../kernel/ckernel.asm");
 			fileBuffer = new StringBuffer((int)f.length()); 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();

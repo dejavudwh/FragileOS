@@ -1,24 +1,24 @@
 org  0x7c00;
 
-LOAD_ADDR  EQU  0X9000
+LoadAddr EQU  08000h   
 
-jmp  entry
 
 entry:
     mov  ax, 0
     mov  ss, ax
     mov  ds, ax
     mov  es, ax
-    mov  si, ax
-
     
-    mov          BX, LOAD_ADDR       ; ES:BX 数据存储缓冲区
-readFloppy:
-    cmp          byte [load_count], 0
-    je           beginLoad
-
+    mov          BX, LoadAddr       ; ES:BX 数据存储缓冲区
     mov          CH, 1        ;CH 用来存储柱面号
     mov          DH, 0        ;DH 用来存储磁头号
+    
+read_floppy:
+   
+    cmp          byte [load_count], 0
+    je           begin_load
+
+    
     mov          CL, 1        ;CL 用来存储扇区号
 
     mov          AH, 0x02      ;  AH = 02 表示要做的是读盘操作
@@ -29,15 +29,15 @@ readFloppy:
 
     inc          CH
     dec          byte [load_count]
-   
     JC           fin
-    jmp          readFloppy
+    add          bx, 512 * 18
+    jmp          read_floppy
     
-beginLoad:
-    jmp          LOAD_ADDR
+begin_load:
+    jmp          LoadAddr
 
 
-load_count db 2 ;连续读取几个柱面
+load_count db 3  
 
 fin:
     HLT
