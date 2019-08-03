@@ -43,9 +43,6 @@ struct BOOTINFO {
 
 void initBootInfo(struct BOOTINFO* pBootInfo);
 
-static char fontA[16] = {0x00, 0x18, 0x18, 0x18, 0x18, 0x24, 0x24, 0x24,
-                         0x24, 0x7e, 0x42, 0x42, 0x42, 0xe7, 0x00, 0x00};
-
 extern char systemFont[16];
 
 void showFont8(char* vram, int xsize, int x, int y, char c, char* font);
@@ -99,6 +96,7 @@ int fifo8_status(struct FIFO8* fifo);
 
 char charToHexVal(char c);
 char* charToHexStr(unsigned char c);
+char* intToHexStr(unsigned int d);
 
 void init_keyboard(void);
 void enable_mouse(struct MOUSE_DEC* mdec);
@@ -106,13 +104,14 @@ void enable_mouse(struct MOUSE_DEC* mdec);
 void show_mouse_info();
 int mouse_decode(struct MOUSE_DEC* mdec, unsigned char dat);
 
+int get_memory_block_count(void);
+
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
-
-void drawDesktop() {
+void CMain(void) {
   initBootInfo(&bootInfo);
   char* vram = bootInfo.vgaRam;
-  int xsize = bootInfo.screenX, ysize = bootInfo.screenY;
+  xsize = bootInfo.screenX, ysize = bootInfo.screenY;
 
   fifo8_init(&keyinfo, 32, keybuf);
   fifo8_init(&mouseinfo, 128, mousebuf);
@@ -148,6 +147,10 @@ void drawDesktop() {
   init_mouse_cursor(mcursor, COL8_008484);
   putblock(vram, xsize, 16, 16, mx, my, mcursor, 16);
 
+  int memCnt = get_memory_block_count();
+  char* pStr = intToHexStr(memCnt);
+  showString(vram, xsize, 0, 0, COL8_FFFFFF, pStr);
+
   io_sti();
   enable_mouse(&mdec);
 
@@ -162,7 +165,7 @@ void drawDesktop() {
       data = fifo8_get(&keyinfo);
       char* pStr = charToHexStr(data);
       static int showPos = 0;
-      showString(vram, xsize, showPos, 0, COL8_FFFFFF, pStr);
+      showString(vram, xsize, showPos, 16, COL8_FFFFFF, pStr);
       showPos += 32;
 
     } else if (fifo8_status(&mouseinfo) != 0) {
@@ -372,6 +375,31 @@ char* charToHexStr(unsigned char c) {
   keyval[2] = charToHexVal(c);
 
   return keyval;
+}
+
+char* intToHexStr(unsigned int d) {
+  static char str[11];
+  str[0] = '0';
+  str[1] = 'X';
+  str[10] = 0;
+
+  int i = 2;
+  for (; i < 10; i++) {
+    str[i] = '0';
+  }
+
+  int p = 9;
+  while (p > 1 && d > 0) {
+    int e = d % 16;
+    d /= 16;
+    if (e >= 10) {
+      str[p] = 'A' + e - 10;
+    } else {
+      str[p] = '0' + e;
+    }
+  }
+
+  return str;
 }
 
 #define PORT_KEYDAT 0x0060

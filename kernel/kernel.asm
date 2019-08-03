@@ -8,10 +8,10 @@ jmp   LABEL_BEGIN
 
 [SECTION .gdt]
 LABEL_GDT:          Descriptor        0,            0,                   0  
-LABEL_DESC_CODE32:  Descriptor        0,            SegCode32Len - 1,    DA_C + DA_32
-LABEL_DESC_VIDEO:   Descriptor        0B8000h,      0ffffh,              DA_DRW
-LABEL_DESC_VRAM:    Descriptor        0,            0ffffffffh,          DA_DRW
-LABEL_DESC_STACK:   Descriptor        0,            TopOfStack,          DA_DRWA+DA_32
+LABEL_DESC_CODE32:  Descriptor        0,      SegCode32Len - 1,       DA_C + DA_32
+LABEL_DESC_VIDEO:   Descriptor        0B8000h,         0ffffh,            DA_DRW
+LABEL_DESC_VRAM:    Descriptor        0,         0ffffffffh,            DA_DRW
+LABEL_DESC_STACK:   Descriptor        0,             TopOfStack,        DA_DRWA+DA_32
 
 GdtLen     equ    $ - LABEL_GDT
 GdtPtr     dw     GdtLen - 1
@@ -41,7 +41,6 @@ IdtLen  equ $ - LABEL_IDT
 IdtPtr  dw  IdtLen - 1
         dd  0
 
-
 [SECTION  .s16]
 [BITS  16]
 LABEL_BEGIN:
@@ -51,6 +50,24 @@ LABEL_BEGIN:
      mov   ss, ax
      mov   sp, 0100h
 
+ComputeMemory:
+     mov   ebx, 0
+     mov   di, MemChkBuf
+.loop:
+     mov   eax, 0E820h
+     mov   ecx, 20
+     mov   edx, 0534D4150h
+     int   15h
+     jc    LABEL_MEM_CHK_FAIL
+     add   di, 20   
+     inc   dword [dwMCRNumber]
+     cmp   ebx, 0
+     jne   .loop
+     jmp   LABEL_MEM_CHK_OK
+LABEL_MEM_CHK_FAIL:
+    mov    dword [dwMCRNumber], 0
+
+LABEL_MEM_CHK_OK:
      mov   al, 0x13
      mov   ah, 0
      int   0x10
@@ -77,7 +94,6 @@ LABEL_BEGIN:
 
      call init8259A
 
-     ;prepare for loading IDT
      xor   eax, eax
      mov   ax,  ds
      shl   eax, 4
@@ -92,8 +108,6 @@ LABEL_BEGIN:
      mov   eax, cr0
      or    eax , 1
      mov   cr0, eax
-
-
 
      jmp   dword  SelectorCode32: 0
 
@@ -149,7 +163,6 @@ io_delay:
 [SECTION .s32]
 [BITS  32]
 LABEL_SEG_CODE32:
-;initialize stack for c code
      mov  ax, SelectorStack
      mov  ss, ax
      mov  esp, TopOfStack
@@ -159,11 +172,10 @@ LABEL_SEG_CODE32:
 
      mov  ax, SelectorVideo
      mov  gs, ax
-     
+        
      sti
-
     
-     %include "desktop.asm"
+     %include "ckernel.asm"
      
      jmp  $
 
@@ -180,7 +192,7 @@ KeyBoardHandler equ _KeyBoardHandler - $$
      push eax
 
      call _intHandlerFromC
-    
+
      pop  eax
      mov  esp, eax
      popad
@@ -198,6 +210,7 @@ mouseHandler equ _mouseHandler - $$
      push eax
 
      call _intHandlerForMouse
+    
 
      pop  eax
      mov  esp, eax
@@ -207,76 +220,84 @@ mouseHandler equ _mouseHandler - $$
      iretd
 
 _io_hlt:  ;void io_hlt(void);
-      HLT
-      RET
+  HLT
+  RET
 
 _io_cli:
-      CLI
-      RET
+  CLI
+  RET
 
 _io_sti:
-      STI
-      RET
-
+  STI
+  RET
 _io_stihlt:
-      STI
-      HLT
-      RET
+  STI
+  HLT
+  RET
 
 _io_in8:
-      mov  edx, [esp + 4]
-      mov  eax, 0
-      in   al, dx
-      ret
+  mov  edx, [esp + 4]
+  mov  eax, 0
+  in   al, dx
+  ret
 
 _io_in16:
-      mov  edx, [esp + 4]
-      mov  eax, 0
-      in   ax, dx
-      ret
+  mov  edx, [esp + 4]
+  mov  eax, 0
+  in   ax, dx
+  ret
 
 _io_in32:
-      mov edx, [esp + 4]
-      in  eax, dx
-      ret
+  mov edx, [esp + 4]
+  in  eax, dx
+  ret
 
 _io_out8:
-      mov edx, [esp + 4]
-      mov al, [esp + 8]
-      out dx, al
-      ret
+    mov edx, [esp + 4]
+    mov al, [esp + 8]
+    out dx, al
+    ret
 
 _io_out16:
-      mov edx, [esp + 4]
-      mov eax, [esp + 8]
-      out dx, ax
-      ret
+    mov edx, [esp + 4]
+    mov eax, [esp + 8]
+    out dx, ax
+    ret
 
 _io_out32:
-      mov edx, [esp + 4]
-      mov eax, [esp + 8]
-      out dx, eax
-      ret
+    mov edx, [esp + 4]
+    mov eax, [esp + 8]
+    out dx, eax
+    ret
 
 _io_load_eflags:
-      pushfd
-      pop  eax
-      ret
+    pushfd
+    pop  eax
+    ret
 
 _io_store_eflags:
-      mov eax, [esp + 4]
-      push eax
-      popfd
-      ret
+    mov eax, [esp + 4]
+    push eax
+    popfd
+    ret
+
+_get_memory_block_count:
+    mov  eax, [dwMCRNumber]
+    ret
+  
 
 %include "fonts.inc"
 
 SegCode32Len   equ  $ - LABEL_SEG_CODE32
 
+MemChkBuf: times 256 db 0
+dwMCRNumber:   dd 0
+
 [SECTION .gs]
 ALIGN 32
 [BITS 32]
 LABEL_STACK:
-      times 512  db 0
-      TopOfStack  equ  $ - LABEL_STACK
+times 512  db 0
+TopOfStack  equ  $ - LABEL_STACK
+
 

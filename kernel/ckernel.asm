@@ -5,45 +5,9 @@
 ; Instruction set: 80386
 
 
-global _CMain: function
-global _computeMousePosition: function
-global _eraseMouse: function
-global _drawMouse: function
-global _show_mouse_info: function
-global _initBootInfo: function
-global _showString: function
-global _init_palette: function
-global _set_palette: function
-global _boxfill8: function
-global _showFont8: function
-global _init_mouse_cursor: function
-global _putblock: function
-global _intHandlerFromC: function
-global _charToHexVal: function
-global _charToHexStr: function
-global _intToHexStr: function
-global _wait_KBC_sendready: function
-global _init_keyboard: function
-global _enable_mouse: function
-global _intHandlerForMouse: function
-global _fifo8_init: function
-global _fifo8_put: function
-global _fifo8_get: function
-global _fifo8_status: function
-global _mouse_decode: function
-
-extern _io_in8                                          ; near
-extern _io_store_eflags                                 ; near
-extern _io_out8                                         ; near
-extern _io_load_eflags                                  ; near
-extern _io_stihlt                                       ; near
-extern _io_cli                                          ; near
-extern _io_sti                                          ; near
-extern _get_memory_block_count                          ; near
-extern _systemFont                                      ; byte
 
 
-SECTION .text   align=4 execute                         ; section number 1, code
+
 
 .text:  ; Local function
 
@@ -1381,7 +1345,6 @@ _mouse_decode:; Function begin
         nop                                             ; 1117 _ 90
 
 
-SECTION .data   align=32 noexecute                      ; section number 2, data
 
 _keyval:                                                ; byte
         db 30H, 58H                                     ; 0000 _ 0X
@@ -1438,7 +1401,6 @@ _cursor.2115:                                           ; byte
         db 2EH, 2EH, 2EH, 2EH, 2EH, 2AH, 2AH, 2AH       ; 0158 _ .....***
 
 
-SECTION .bss    align=32 noexecute                      ; section number 3, bss
 
 _mcursor:                                               ; byte
         resb    256                                     ; 0000
@@ -1484,14 +1446,12 @@ _str.2163:                                              ; byte
 ?_068:  resb    18                                      ; 020E
 
 
-SECTION .rdata  align=4 noexecute                       ; section number 4, const
 
 ?_069:                                                  ; byte
         db 46H, 72H, 61H, 67H, 69H, 6CH, 65H, 20H       ; 0000 _ Fragile 
         db 4FH, 53H, 00H, 00H                           ; 0008 _ OS..
 
 
-SECTION .rdata$zzz align=4 noexecute                    ; section number 5, const
 
         db 47H, 43H, 43H, 3AH, 20H, 28H, 78H, 38H       ; 0000 _ GCC: (x8
         db 36H, 5FH, 36H, 34H, 2DH, 70H, 6FH, 73H       ; 0008 _ 6_64-pos
