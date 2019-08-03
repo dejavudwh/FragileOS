@@ -1,5 +1,5 @@
 ; Disassembly of file: desktop.o
-; Sat Aug  3 10:57:03 2019
+; Sat Aug  3 11:40:13 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386
@@ -11,7 +11,7 @@
 
 .text:  ; Local function
 
-_CMain:
+_drawDesktop:
         push    ebp                                     ; 0000 _ 55
         mov     ebp, esp                                ; 0001 _ 89. E5
         push    esi                                     ; 0003 _ 56
@@ -105,7 +105,7 @@ _CMain:
         lea     edx, [eax-0CH]                          ; 01A1 _ 8D. 50, F4
         mov     eax, dword [_xsize]                     ; 01A4 _ A1, 000001F8(d)
         mov     dword [esp+18H], ecx                    ; 01A9 _ 89. 4C 24, 18
-        mov     dword [esp+14H], 59                     ; 01AD _ C7. 44 24, 14, 0000003B
+        mov     dword [esp+14H], 30                     ; 01AD _ C7. 44 24, 14, 0000001E
         mov     dword [esp+10H], edx                    ; 01B5 _ 89. 54 24, 10
         mov     dword [esp+0CH], 3                      ; 01B9 _ C7. 44 24, 0C, 00000003
         mov     dword [esp+8H], 7                       ; 01C1 _ C7. 44 24, 08, 00000007
@@ -133,7 +133,7 @@ _CMain:
         lea     edx, [eax-4H]                           ; 0229 _ 8D. 50, FC
         mov     eax, dword [_xsize]                     ; 022C _ A1, 000001F8(d)
         mov     dword [esp+18H], ecx                    ; 0231 _ 89. 4C 24, 18
-        mov     dword [esp+14H], 59                     ; 0235 _ C7. 44 24, 14, 0000003B
+        mov     dword [esp+14H], 30                     ; 0235 _ C7. 44 24, 14, 0000001E
         mov     dword [esp+10H], edx                    ; 023D _ 89. 54 24, 10
         mov     dword [esp+0CH], 3                      ; 0241 _ C7. 44 24, 0C, 00000003
         mov     dword [esp+8H], 15                      ; 0249 _ C7. 44 24, 08, 0000000F
@@ -147,9 +147,9 @@ _CMain:
         lea     edx, [eax-0BH]                          ; 026D _ 8D. 50, F5
         mov     eax, dword [_xsize]                     ; 0270 _ A1, 000001F8(d)
         mov     dword [esp+18H], ecx                    ; 0275 _ 89. 4C 24, 18
-        mov     dword [esp+14H], 59                     ; 0279 _ C7. 44 24, 14, 0000003B
+        mov     dword [esp+14H], 30                     ; 0279 _ C7. 44 24, 14, 0000001E
         mov     dword [esp+10H], edx                    ; 0281 _ 89. 54 24, 10
-        mov     dword [esp+0CH], 59                     ; 0285 _ C7. 44 24, 0C, 0000003B
+        mov     dword [esp+0CH], 30                     ; 0285 _ C7. 44 24, 0C, 0000001E
         mov     dword [esp+8H], 15                      ; 028D _ C7. 44 24, 08, 0000000F
         mov     dword [esp+4H], eax                     ; 0295 _ 89. 44 24, 04
         mov     eax, dword [ebp-0CH]                    ; 0299 _ 8B. 45, F4
@@ -161,7 +161,7 @@ _CMain:
         lea     edx, [eax-3H]                           ; 02B1 _ 8D. 50, FD
         mov     eax, dword [_xsize]                     ; 02B4 _ A1, 000001F8(d)
         mov     dword [esp+18H], ecx                    ; 02B9 _ 89. 4C 24, 18
-        mov     dword [esp+14H], 59                     ; 02BD _ C7. 44 24, 14, 0000003B
+        mov     dword [esp+14H], 30                     ; 02BD _ C7. 44 24, 14, 0000001E
         mov     dword [esp+10H], edx                    ; 02C5 _ 89. 54 24, 10
         mov     dword [esp+0CH], 2                      ; 02C9 _ C7. 44 24, 0C, 00000002
         mov     dword [esp+8H], 0                       ; 02D1 _ C7. 44 24, 08, 00000000
@@ -175,9 +175,9 @@ _CMain:
         lea     edx, [eax-0CH]                          ; 02F5 _ 8D. 50, F4
         mov     eax, dword [_xsize]                     ; 02F8 _ A1, 000001F8(d)
         mov     dword [esp+18H], ecx                    ; 02FD _ 89. 4C 24, 18
-        mov     dword [esp+14H], 60                     ; 0301 _ C7. 44 24, 14, 0000003C
+        mov     dword [esp+14H], 31                     ; 0301 _ C7. 44 24, 14, 0000001F
         mov     dword [esp+10H], edx                    ; 0309 _ 89. 54 24, 10
-        mov     dword [esp+0CH], 60                     ; 030D _ C7. 44 24, 0C, 0000003C
+        mov     dword [esp+0CH], 31                     ; 030D _ C7. 44 24, 0C, 0000001F
         mov     dword [esp+8H], 0                       ; 0315 _ C7. 44 24, 08, 00000000
         mov     dword [esp+4H], eax                     ; 031D _ 89. 44 24, 04
         mov     eax, dword [ebp-0CH]                    ; 0321 _ 8B. 45, F4
@@ -190,7 +190,7 @@ _CMain:
         mov     eax, dword [_ysize]                     ; 033C _ A1, 000001FC(d)
         lea     ecx, [eax-0CH]                          ; 0341 _ 8D. 48, F4
         mov     eax, dword [_xsize]                     ; 0344 _ A1, 000001F8(d)
-        lea     edx, [eax-2FH]                          ; 0349 _ 8D. 50, D1
+        lea     edx, [eax-24H]                          ; 0349 _ 8D. 50, DC
         mov     eax, dword [_xsize]                     ; 034C _ A1, 000001F8(d)
         mov     dword [esp+18H], esi                    ; 0351 _ 89. 74 24, 18
         mov     dword [esp+14H], ebx                    ; 0355 _ 89. 5C 24, 14
@@ -204,11 +204,11 @@ _CMain:
         mov     eax, dword [_ysize]                     ; 0378 _ A1, 000001FC(d)
         lea     esi, [eax-4H]                           ; 037D _ 8D. 70, FC
         mov     eax, dword [_xsize]                     ; 0380 _ A1, 000001F8(d)
-        lea     ebx, [eax-2FH]                          ; 0385 _ 8D. 58, D1
+        lea     ebx, [eax-24H]                          ; 0385 _ 8D. 58, DC
         mov     eax, dword [_ysize]                     ; 0388 _ A1, 000001FC(d)
         lea     ecx, [eax-0BH]                          ; 038D _ 8D. 48, F5
         mov     eax, dword [_xsize]                     ; 0390 _ A1, 000001F8(d)
-        lea     edx, [eax-2FH]                          ; 0395 _ 8D. 50, D1
+        lea     edx, [eax-24H]                          ; 0395 _ 8D. 50, DC
         mov     eax, dword [_xsize]                     ; 0398 _ A1, 000001F8(d)
         mov     dword [esp+18H], esi                    ; 039D _ 89. 74 24, 18
         mov     dword [esp+14H], ebx                    ; 03A1 _ 89. 5C 24, 14
@@ -226,7 +226,7 @@ _CMain:
         mov     eax, dword [_ysize]                     ; 03D4 _ A1, 000001FC(d)
         lea     ecx, [eax-3H]                           ; 03D9 _ 8D. 48, FD
         mov     eax, dword [_xsize]                     ; 03DC _ A1, 000001F8(d)
-        lea     edx, [eax-2FH]                          ; 03E1 _ 8D. 50, D1
+        lea     edx, [eax-24H]                          ; 03E1 _ 8D. 50, DC
         mov     eax, dword [_xsize]                     ; 03E4 _ A1, 000001F8(d)
         mov     dword [esp+18H], esi                    ; 03E9 _ 89. 74 24, 18
         mov     dword [esp+14H], ebx                    ; 03ED _ 89. 5C 24, 14

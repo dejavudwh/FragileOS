@@ -108,7 +108,7 @@ int get_memory_block_count(void);
 
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
-void CMain(void) {
+void drawDesktop(void) {
   initBootInfo(&bootInfo);
   char* vram = bootInfo.vgaRam;
   xsize = bootInfo.screenX, ysize = bootInfo.screenY;
@@ -124,18 +124,18 @@ void CMain(void) {
   boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 15, xsize - 1, ysize - 15);
   boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 14, xsize - 1, ysize - 1);
 
-  boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 12, 59, ysize - 12);
+  boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 12, 30, ysize - 12);
   boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 12, 2, ysize - 4);
-  boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 59, ysize - 4);
-  boxfill8(vram, xsize, COL8_848484, 59, ysize - 11, 59, ysize - 5);
-  boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 59, ysize - 3);
-  boxfill8(vram, xsize, COL8_000000, 60, ysize - 12, 60, ysize - 3);
+  boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 30, ysize - 4);
+  boxfill8(vram, xsize, COL8_848484, 30, ysize - 11, 30, ysize - 5);
+  boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 30, ysize - 3);
+  boxfill8(vram, xsize, COL8_000000, 31, ysize - 12, 31, ysize - 3);
 
-  boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 12, xsize - 4,
+  boxfill8(vram, xsize, COL8_848484, xsize - 36, ysize - 12, xsize - 4,
            ysize - 12);
-  boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 11, xsize - 47,
+  boxfill8(vram, xsize, COL8_848484, xsize - 36, ysize - 11, xsize - 36,
            ysize - 4);
-  boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize - 3, xsize - 4,
+  boxfill8(vram, xsize, COL8_FFFFFF, xsize - 36, ysize - 3, xsize - 4,
            ysize - 3);
   boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 12, xsize - 3,
            ysize - 3);
