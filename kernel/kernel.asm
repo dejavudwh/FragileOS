@@ -285,6 +285,9 @@ _get_memory_block_count:
     mov  eax, [dwMCRNumber]
     ret
   
+_get_addr_buffer:
+    mov eax,  MemChkBuf
+    ret  
 
 %include "fonts.inc"
 
