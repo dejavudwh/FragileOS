@@ -21,6 +21,10 @@
 #define PIC_OCW2 0x20
 #define PIC1_OCW2 0xA0
 
+struct MEMMAN* memman = (struct MEMMAN*)0x100000;
+
+char get_font_data(int c, int offset);
+
 void io_hlt(void);
 void io_cli(void);
 void io_sti(void);
@@ -38,11 +42,11 @@ struct BOOTINFO {
     short screenX, screenY;
 };
 
-struct MEMMAN* memman = (struct MEMMAN*)0x100000;
-
 void initBootInfo(struct BOOTINFO* pBootInfo);
 
 extern char systemFont[16];
+extern char testData[4];
+// extern int* dwMCRNumber;
 
 void showFont8(char* vram, int xsize, int x, int y, char c, char* font);
 
@@ -148,6 +152,7 @@ void launch(void) {
     putblock(vram, xsize, 16, 16, mx, my, mcursor, 16);
 
     int memCnt = get_memory_block_count();
+
     struct AddrRangeDesc* memDesc = (struct AddrRangeDesc*)get_addr_buffer();
 
     memman_init(memman);
@@ -163,7 +168,6 @@ void launch(void) {
 
     int data = 0;
     int count = 0;
-
     for (;;) {
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) == 0) {
@@ -312,41 +316,6 @@ void showFont8(char* vram, int xsize, int x, int y, char c, char* font) {
     }
 }
 
-void showMemoryInfo(struct AddrRangeDesc* desc, char* vram, int page, int xsize,
-                    int color) {
-    int x = 0, y = 0, gap = 13 * 8, strLen = 10 * 8;
-
-    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize, 100);
-
-    showString(vram, xsize, x, y, color, "page is: ");
-    char* pPageCnt = intToHexStr(page);
-    showString(vram, xsize, gap, y, color, pPageCnt);
-    y += 16;
-
-    showString(vram, xsize, x, y, color, "BaseAddrL: ");
-    char* pBaseAddrL = intToHexStr(desc->baseAddrLow);
-    showString(vram, xsize, gap, y, color, pBaseAddrL);
-    y += 16;
-
-    showString(vram, xsize, x, y, color, "BaseAddrH: ");
-    char* pBaseAddrH = intToHexStr(desc->baseAddrHigh);
-    showString(vram, xsize, gap, y, color, pBaseAddrH);
-
-    y += 16;
-    showString(vram, xsize, x, y, color, "lengthLow: ");
-    char* pLengthLow = intToHexStr(desc->lengthLow);
-    showString(vram, xsize, gap, y, color, pLengthLow);
-
-    y += 16;
-    showString(vram, xsize, x, y, color, "lengthHigh: ");
-    char* pLengthHigh = intToHexStr(desc->lengthHigh);
-    showString(vram, xsize, gap, y, color, pLengthHigh);
-
-    y += 16;
-    showString(vram, xsize, x, y, color, "type: ");
-    char* pType = intToHexStr(desc->type);
-    showString(vram, xsize, gap, y, color, pType);
-}
 void init_mouse_cursor(char* mouse, char bc) {
     static char cursor[16][16] = {
         "**************..", "*OOOOOOOOOOO*...", "*OOOOOOOOOO*....",
@@ -430,6 +399,7 @@ char* intToHexStr(unsigned int d) {
         } else {
             str[p] = '0' + e;
         }
+        p--;
     }
 
     return str;
@@ -569,3 +539,124 @@ int mouse_decode(struct MOUSE_DEC* mdec, unsigned char dat) {
 
     return -1;
 }
+
+void showMemoryInfo(struct AddrRangeDesc* desc, char* vram, int page, int xsize,
+                    int color) {
+    int x = 0, y = 0, gap = 13 * 8, strLen = 10 * 8;
+
+    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize, 100);
+
+    showString(vram, xsize, x, y, color, "page is: ");
+    char* pPageCnt = intToHexStr(page);
+    showString(vram, xsize, gap, y, color, pPageCnt);
+    y += 16;
+
+    showString(vram, xsize, x, y, color, "BaseAddrL: ");
+    char* pBaseAddrL = intToHexStr(desc->baseAddrLow);
+    showString(vram, xsize, gap, y, color, pBaseAddrL);
+    y += 16;
+
+    showString(vram, xsize, x, y, color, "BaseAddrH: ");
+    char* pBaseAddrH = intToHexStr(desc->baseAddrHigh);
+    showString(vram, xsize, gap, y, color, pBaseAddrH);
+
+    y += 16;
+    showString(vram, xsize, x, y, color, "lengthLow: ");
+    char* pLengthLow = intToHexStr(desc->lengthLow);
+    showString(vram, xsize, gap, y, color, pLengthLow);
+
+    y += 16;
+    showString(vram, xsize, x, y, color, "lengthHigh: ");
+    char* pLengthHigh = intToHexStr(desc->lengthHigh);
+    showString(vram, xsize, gap, y, color, pLengthHigh);
+
+    y += 16;
+    showString(vram, xsize, x, y, color, "type: ");
+    char* pType = intToHexStr(desc->type);
+    showString(vram, xsize, gap, y, color, pType);
+}
+/*
+void memman_init(struct MEMMAN *man) {
+    man->frees = 0;
+    man->maxfrees = 0;
+    man->lostsize = 0;
+    man->losts = 0;
+}
+
+unsigned int memman_total(struct MEMMAN *man) {
+    unsigned int i, t = 0;
+    for (i = 0; i < man->frees; i++) {
+        t += man->free[i].size;
+    }
+
+    return t;
+}
+
+
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int size) {
+    unsigned int i, a;
+    for (i = 0; i < man->frees; i++) {
+        if (man->free[i].size >= size) {
+            a = man->free[i].addr;
+            man->free[i].size -= size;
+            if (man->free[i].size == 0) {
+                man->frees--;
+            }
+
+            return a;
+        }
+    }
+
+    return 0;
+}
+
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
+    int i, j;
+    for (i = 0; i < man->frees; i++) {
+        if (man->free[i].addr > addr) {
+            break;
+        }
+    }
+
+    if (i > 0) {
+        if (man->free[i-1].addr + man->free[i-1].size == addr) {
+           man->free[i-1].size += size;
+           if (i < man->frees) {
+               if (addr + size == man->free[i].addr) {
+                   man->free[i-1].size += man->free[i].size;
+                   man->frees--;
+               }
+           }
+
+           return 0;
+        }
+    }
+
+    if (i < man->frees) {
+        if (addr + size == man->free[i].addr) {
+           man->free[i].addr = addr;
+           man->free[i].size += size;
+           return 0;
+        }
+    }
+
+    if (man->frees < MEMMAN_FREES) {
+        for (j = man->frees; j > i; j--) {
+            man->free[j] = man->free[j-1];
+        }
+
+        man->frees++;
+        if (man->maxfrees < man->frees) {
+            man->maxfrees = man->frees;
+        }
+
+        man->free[i].addr = addr;
+        man->free[i].size = size;
+        return 0;
+    }
+
+    man->losts++;
+    man->lostsize += size;
+    return -1;
+}
+*/
