@@ -24,15 +24,32 @@ public class LinkAssembly {
 		}
     }
 
+	public String subSemi(String line) {
+		int index = line.indexOf(";");
+		if (index > 0) {
+			line = line.substring(0, line.indexOf(";"));
+		}
+
+		return line;
+	}
+
     public void process() {
+		int count = 0;
     	String lineText = null;
     	try {
 			while ((lineText = fileReader.readLine()) != null) {
 				String line = lineText.toLowerCase();
-				if (line.contains("global") || line.contains("extern") || line.contains("section")) {
+				line = subSemi(line);
+				if (line.contains("global") || line.contains("extern") || line.contains("section") && !line.contains(".rdata")) {
 					continue;
 				}
 				
+				if (line.contains(".rdata")) {
+					do {
+						lineText = fileReader.readLine();
+						lineText = subSemi(lineText);
+					} while (!lineText.contains(":"));
+				}		
 				fileBuffer.append(lineText).append("\r\n");
 			}
 			

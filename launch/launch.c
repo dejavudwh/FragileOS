@@ -160,7 +160,7 @@ void launch(void) {
 
     sheet_updown(shtctl, sht_back, 0);
 
-    sheet_updown(shtctl, sht_mouse, 1);
+    sheet_updown(shtctl, sht_mouse, 100);
 
     io_sti();
     enable_mouse(&mdec);
@@ -211,8 +211,6 @@ void init_screen8(char *vram, int xsize, int ysize) {
              ysize - 3);
     boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 12, xsize - 3,
              ysize - 3);
-
-    showString(vram, xsize, 125, 60, COL8_FFFFFF, "Fragile OS");
 }
 
 void computeMousePosition(struct SHTCTL *shtctl, struct SHEET *sht,
@@ -428,6 +426,7 @@ char *intToHexStr(unsigned int d) {
     return str;
 }
 
+#define PORT_KEYDAT 0x0060
 #define PORT_KEYSTA 0x0064
 #define PORT_KEYCMD 0x0064
 #define KEYSTA_SEND_NOTREADY 0x02
