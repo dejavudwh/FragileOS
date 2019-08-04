@@ -22,7 +22,7 @@
 #define PIC_OCW2 0x20
 #define PIC1_OCW2 0xA0
 
-struct MEMMAN* memman = (struct MEMMAN*)0x100000;
+struct MEMMAN *memman = (struct MEMMAN *)0x100000;
 
 char get_font_data(int c, int offset);
 
@@ -34,36 +34,36 @@ int io_load_eflags(void);
 void io_store_eflags(int eflags);
 void show_char(void);
 void init_palette(void);
-void set_palette(int start, int end, unsigned char* rgb);
-void boxfill8(unsigned char* vram, int xsize, unsigned char c, int x, int y,
+void set_palette(int start, int end, unsigned char *rgb);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
               int x0, int y0);
 
 struct BOOTINFO {
-    char* vgaRam;
+    char *vgaRam;
     short screenX, screenY;
 };
 
-void initBootInfo(struct BOOTINFO* pBootInfo);
+void initBootInfo(struct BOOTINFO *pBootInfo);
 
 extern char systemFont[16];
 
-void showFont8(char* vram, int xsize, int x, int y, char c, char* font);
+void showFont8(char *vram, int xsize, int x, int y, char c, char *font);
 
-void showString(char* vram, int xsize, int x, int y, char color,
-                unsigned char* s);
+void showString(struct SHTCTL *shtctl, struct SHEET *sht, int x, int y,
+                char color, unsigned char *s);
 
-void putblock(char* vram, int vxsize, int pxsize, int pysize, int px0, int py0,
-              char* buf, int bxsize);
+void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
+              char *buf, int bxsize);
 
-void init_mouse_cursor(char* mouse, char bc);
-void intHandlerFromC(char* esp);
+void init_mouse_cursor(char *mouse, char bc);
+void intHandlerFromC(char *esp);
 
 static struct BOOTINFO bootInfo;
 
 static char keyval[5] = {'0', 'X', 0, 0, 0};
 
 struct FIFO8 {
-    unsigned char* buf;
+    unsigned char *buf;
     int p, q, size, free, flags;
 };
 
@@ -80,20 +80,21 @@ struct MOUSE_DEC {
 
 static struct MOUSE_DEC mdec;
 
-void fifo8_init(struct FIFO8* fifo, int size, unsigned char* buf);
-int fifo8_put(struct FIFO8* fifo, unsigned char data);
-int fifo8_get(struct FIFO8* fifo);
-int fifo8_status(struct FIFO8* fifo);
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
+int fifo8_put(struct FIFO8 *fifo, unsigned char data);
+int fifo8_get(struct FIFO8 *fifo);
+int fifo8_status(struct FIFO8 *fifo);
 
 char charToHexVal(char c);
-char* charToHexStr(unsigned char c);
-char* intToHexStr(unsigned int d);
+char *charToHexStr(unsigned char c);
+char *intToHexStr(unsigned int d);
 
 void init_keyboard(void);
-void enable_mouse(struct MOUSE_DEC* mdec);
+void enable_mouse(struct MOUSE_DEC *mdec);
 
-void show_mouse_info(struct SHTCTL* shtctl, struct SHEET* sht_mouse);
-int mouse_decode(struct MOUSE_DEC* mdec, unsigned char dat);
+void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
+                     struct SHEET *sht_mouse);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 
 struct AddrRangeDesc {
     unsigned int baseAddrLow;
@@ -104,11 +105,15 @@ struct AddrRangeDesc {
 };
 
 int get_memory_block_count(void);
-char* get_addr_buffer(void);
-void showMemoryInfo(struct AddrRangeDesc* desc, char* vram, int page, int xsize,
+char *get_addr_buffer(void);
+void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
+                    struct AddrRangeDesc *desc, char *vram, int page, int xsize,
                     int color);
 
-void init_screen8(char* vram, int x, int y);
+void init_screen8(char *vram, int x, int y);
+
+void message_box(struct SHTCTL *shtctl, char *title);
+void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title);
 
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
@@ -117,9 +122,9 @@ static unsigned char *buf_back, buf_mouse[256];
 
 void launch(void) {
     initBootInfo(&bootInfo);
-    char* vram = bootInfo.vgaRam;
+    char *vram = bootInfo.vgaRam;
     xsize = bootInfo.screenX, ysize = bootInfo.screenY;
-    struct SHTCTL* shtctl;
+    struct SHTCTL *shtctl;
     struct SHEET *sht_back = 0, *sht_mouse = 0;
 
     fifo8_init(&keyinfo, 32, keybuf);
@@ -130,14 +135,14 @@ void launch(void) {
 
     int memCnt = get_memory_block_count();
 
-    struct AddrRangeDesc* memDesc = (struct AddrRangeDesc*)get_addr_buffer();
+    struct AddrRangeDesc *memDesc = (struct AddrRangeDesc *)get_addr_buffer();
     memman_init(memman);
     memman_free(memman, 0x001008000, 0x3FEE8000);
 
     shtctl = shtctl_init(memman, vram, xsize, ysize);
     sht_back = sheet_alloc(shtctl);
     sht_mouse = sheet_alloc(shtctl);
-    buf_back = (unsigned char*)memman_alloc_4k(memman, xsize * ysize);
+    buf_back = (unsigned char *)memman_alloc_4k(memman, xsize * ysize);
 
     sheet_setbuf(sht_back, buf_back, xsize, ysize, COLOR_INVISIBLE);
     sheet_setbuf(sht_mouse, buf_mouse, 16, 16, COLOR_INVISIBLE);
@@ -150,6 +155,8 @@ void launch(void) {
     mx = (xsize - 16) / 2;
     my = (ysize - 28 - 16) / 2;
     sheet_slide(shtctl, sht_mouse, mx, my);
+
+    message_box(shtctl, "windown");
 
     sheet_updown(shtctl, sht_back, 0);
 
@@ -169,23 +176,21 @@ void launch(void) {
             data = fifo8_get(&keyinfo);
 
             if (data == 0x1C) {
-                showMemoryInfo(memDesc + count, buf_back, count, xsize,
-                               COL8_FFFFFF);
+                showMemoryInfo(shtctl, sht_back, memDesc + count, buf_back,
+                               count, xsize, COL8_FFFFFF);
                 count = (count + 1);
                 if (count > memCnt) {
                     count = 0;
                 }
-
-                sheet_refresh(shtctl);
             }
 
         } else if (fifo8_status(&mouseinfo) != 0) {
-            show_mouse_info(shtctl, sht_mouse);
+            show_mouse_info(shtctl, sht_back, sht_mouse);
         }
     }
 }
 
-void init_screen8(char* vram, int xsize, int ysize) {
+void init_screen8(char *vram, int xsize, int ysize) {
     boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 17);
     boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 16, xsize - 1, ysize - 16);
     boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 15, xsize - 1, ysize - 15);
@@ -210,7 +215,8 @@ void init_screen8(char* vram, int xsize, int ysize) {
     showString(vram, xsize, 125, 60, COL8_FFFFFF, "Fragile OS");
 }
 
-void computeMousePosition(struct MOUSE_DEC* mdec) {
+void computeMousePosition(struct SHTCTL *shtctl, struct SHEET *sht,
+                          struct MOUSE_DEC *mdec) {
     mx += mdec->x;
     my += mdec->y;
     if (mx < 0) {
@@ -221,42 +227,45 @@ void computeMousePosition(struct MOUSE_DEC* mdec) {
         my = 0;
     }
 
-    if (mx > xsize - 16) {
-        mx = xsize - 16;
+    if (mx > xsize - 1) {
+        mx = xsize - 1;
     }
-    if (my > ysize - 16) {
-        my = ysize - 16;
+    if (my > ysize - 1) {
+        my = ysize - 1;
     }
 
-    boxfill8(buf_back, xsize, COL8_008484, 0, 0, 79, 15);
-    showString(buf_back, xsize, 0, 0, COL8_FFFFFF, "mouse move");
+    showString(shtctl, sht, 0, 0, COL8_FFFFFF, "improve string showing");
 }
 
-void show_mouse_info(struct SHTCTL* shtctl, struct SHEET* sht_mouse) {
-    char* vram = buf_back;
+void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
+                     struct SHEET *sht_mouse) {
+    char *vram = buf_back;
     unsigned char data = 0;
 
     io_sti();
     data = fifo8_get(&mouseinfo);
     if (mouse_decode(&mdec, data) != 0) {
-        computeMousePosition(&mdec);
+        computeMousePosition(shtctl, sht_back, &mdec);
 
         sheet_slide(shtctl, sht_mouse, mx, my);
     }
 }
 
-void initBootInfo(struct BOOTINFO* pBootInfo) {
-    pBootInfo->vgaRam = (char*)0xa0000;
+void initBootInfo(struct BOOTINFO *pBootInfo) {
+    pBootInfo->vgaRam = (char *)0xa0000;
     pBootInfo->screenX = 320;
     pBootInfo->screenY = 200;
 }
 
-void showString(char* vram, int xsize, int x, int y, char color,
-                unsigned char* s) {
+void showString(struct SHTCTL *shtctl, struct SHEET *sht, int x, int y,
+                char color, unsigned char *s) {
+    int begin = x;
     for (; *s != 0x00; s++) {
-        showFont8(vram, xsize, x, y, color, systemFont + *s * 16);
+        showFont8(sht->buf, sht->bxsize, x, y, color, systemFont + *s * 16);
         x += 8;
     }
+
+    sheet_refresh(shtctl, sht, begin, y, x, y + 16);
 }
 
 void init_palette(void) {
@@ -271,7 +280,7 @@ void init_palette(void) {
     return;
 }
 
-void set_palette(int start, int end, unsigned char* rgb) {
+void set_palette(int start, int end, unsigned char *rgb) {
     int i, eflags;
     eflags = io_load_eflags();
     io_cli();
@@ -288,7 +297,7 @@ void set_palette(int start, int end, unsigned char* rgb) {
     return;
 }
 
-void boxfill8(unsigned char* vram, int xsize, unsigned char c, int x0, int y0,
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0,
               int x1, int y1) {
     int x, y;
     for (y = y0; y <= y1; y++)
@@ -297,7 +306,7 @@ void boxfill8(unsigned char* vram, int xsize, unsigned char c, int x0, int y0,
         }
 }
 
-void showFont8(char* vram, int xsize, int x, int y, char c, char* font) {
+void showFont8(char *vram, int xsize, int x, int y, char c, char *font) {
     int i;
     char d;
 
@@ -330,7 +339,7 @@ void showFont8(char* vram, int xsize, int x, int y, char c, char* font) {
     }
 }
 
-void init_mouse_cursor(char* mouse, char bc) {
+void init_mouse_cursor(char *mouse, char bc) {
     static char cursor[16][16] = {
         "**************..", "*OOOOOOOOOOO*...", "*OOOOOOOOOO*....",
         "*OOOOOOOOO*.....", "*OOOOOOOO*......", "*OOOOOOO*.......",
@@ -355,8 +364,8 @@ void init_mouse_cursor(char* mouse, char bc) {
     }
 }
 
-void putblock(char* vram, int vxsize, int pxsize, int pysize, int px0, int py0,
-              char* buf, int bxsize) {
+void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
+              char *buf, int bxsize) {
     int x, y;
     for (y = 0; y < pysize; y++)
         for (x = 0; x < pxsize; x++) {
@@ -364,8 +373,8 @@ void putblock(char* vram, int vxsize, int pxsize, int pysize, int px0, int py0,
         }
 }
 
-void intHandlerFromC(char* esp) {
-    char* vram = bootInfo.vgaRam;
+void intHandlerFromC(char *esp) {
+    char *vram = bootInfo.vgaRam;
     int xsize = bootInfo.screenX, ysize = bootInfo.screenY;
     io_out8(PIC_OCW2, 0x20);
     unsigned char data = 0;
@@ -383,7 +392,7 @@ char charToHexVal(char c) {
     return '0' + c;
 }
 
-char* charToHexStr(unsigned char c) {
+char *charToHexStr(unsigned char c) {
     int i = 0;
     char mod = c % 16;
     keyval[3] = charToHexVal(mod);
@@ -393,7 +402,7 @@ char* charToHexStr(unsigned char c) {
     return keyval;
 }
 
-char* intToHexStr(unsigned int d) {
+char *intToHexStr(unsigned int d) {
     static char str[11];
     str[0] = '0';
     str[1] = 'X';
@@ -419,7 +428,6 @@ char* intToHexStr(unsigned int d) {
     return str;
 }
 
-#define PORT_KEYDAT 0x0060
 #define PORT_KEYSTA 0x0064
 #define PORT_KEYCMD 0x0064
 #define KEYSTA_SEND_NOTREADY 0x02
@@ -445,7 +453,7 @@ void init_keyboard(void) {
 #define KEYCMD_SENDTO_MOUSE 0xd4
 #define MOUSECMD_ENABLE 0xf4
 
-void enable_mouse(struct MOUSE_DEC* mdec) {
+void enable_mouse(struct MOUSE_DEC *mdec) {
     wait_KBC_sendready();
     io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
     wait_KBC_sendready();
@@ -455,7 +463,7 @@ void enable_mouse(struct MOUSE_DEC* mdec) {
     return;
 }
 
-void intHandlerForMouse(char* esp) {
+void intHandlerForMouse(char *esp) {
     unsigned char data;
     io_out8(PIC1_OCW2, 0x20);
     io_out8(PIC_OCW2, 0x20);
@@ -464,7 +472,7 @@ void intHandlerForMouse(char* esp) {
     fifo8_put(&mouseinfo, data);
 }
 
-void fifo8_init(struct FIFO8* fifo, int size, unsigned char* buf) {
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf) {
     fifo->size = size;
     fifo->buf = buf;
     fifo->free = size;
@@ -475,7 +483,7 @@ void fifo8_init(struct FIFO8* fifo, int size, unsigned char* buf) {
 }
 
 #define FLAGS_OVERRUN 0x0001
-int fifo8_put(struct FIFO8* fifo, unsigned char data) {
+int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
     if (fifo->free == 0) {
         fifo->flags |= FLAGS_OVERRUN;
         return -1;
@@ -491,7 +499,7 @@ int fifo8_put(struct FIFO8* fifo, unsigned char data) {
     return 0;
 }
 
-int fifo8_get(struct FIFO8* fifo) {
+int fifo8_get(struct FIFO8 *fifo) {
     int data;
     if (fifo->free == fifo->size) {
         return -1;
@@ -507,9 +515,9 @@ int fifo8_get(struct FIFO8* fifo) {
     return data;
 }
 
-int fifo8_status(struct FIFO8* fifo) { return fifo->size - fifo->free; }
+int fifo8_status(struct FIFO8 *fifo) { return fifo->size - fifo->free; }
 
-int mouse_decode(struct MOUSE_DEC* mdec, unsigned char dat) {
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat) {
     if (mdec->phase == 0) {
         if (dat == 0xfa) {
             mdec->phase = 1;
@@ -554,38 +562,105 @@ int mouse_decode(struct MOUSE_DEC* mdec, unsigned char dat) {
     return -1;
 }
 
-void showMemoryInfo(struct AddrRangeDesc* desc, char* vram, int page, int xsize,
+void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
+                    struct AddrRangeDesc *desc, char *vram, int page, int xsize,
                     int color) {
     int x = 0, y = 0, gap = 13 * 8, strLen = 10 * 8;
 
-    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize, 100);
+    init_screen8(sht->buf, xsize, ysize);
 
-    showString(vram, xsize, x, y, color, "page is: ");
-    char* pPageCnt = intToHexStr(page);
-    showString(vram, xsize, gap, y, color, pPageCnt);
+    showString(shtctl, sht, x, y, color, "page is: ");
+    char *pPageCnt = intToHexStr(page);
+    showString(shtctl, sht, gap, y, color, pPageCnt);
     y += 16;
 
-    showString(vram, xsize, x, y, color, "BaseAddrL: ");
-    char* pBaseAddrL = intToHexStr(desc->baseAddrLow);
-    showString(vram, xsize, gap, y, color, pBaseAddrL);
+    showString(shtctl, sht, x, y, color, "BaseAddrL: ");
+    char *pBaseAddrL = intToHexStr(desc->baseAddrLow);
+    showString(shtctl, sht, gap, y, color, pBaseAddrL);
     y += 16;
 
-    showString(vram, xsize, x, y, color, "BaseAddrH: ");
-    char* pBaseAddrH = intToHexStr(desc->baseAddrHigh);
-    showString(vram, xsize, gap, y, color, pBaseAddrH);
+    showString(shtctl, sht, x, y, color, "BaseAddrH: ");
+    char *pBaseAddrH = intToHexStr(desc->baseAddrHigh);
+    showString(shtctl, sht, gap, y, color, pBaseAddrH);
 
     y += 16;
-    showString(vram, xsize, x, y, color, "lengthLow: ");
-    char* pLengthLow = intToHexStr(desc->lengthLow);
-    showString(vram, xsize, gap, y, color, pLengthLow);
+    showString(shtctl, sht, x, y, color, "lengthLow: ");
+    char *pLengthLow = intToHexStr(desc->lengthLow);
+    showString(shtctl, sht, gap, y, color, pLengthLow);
 
     y += 16;
-    showString(vram, xsize, x, y, color, "lengthHigh: ");
-    char* pLengthHigh = intToHexStr(desc->lengthHigh);
-    showString(vram, xsize, gap, y, color, pLengthHigh);
+    showString(shtctl, sht, x, y, color, "lengthHigh: ");
+    char *pLengthHigh = intToHexStr(desc->lengthHigh);
+    showString(shtctl, sht, gap, y, color, pLengthHigh);
 
     y += 16;
-    showString(vram, xsize, x, y, color, "type: ");
-    char* pType = intToHexStr(desc->type);
-    showString(vram, xsize, gap, y, color, pType);
+    showString(shtctl, sht, x, y, color, "type: ");
+    char *pType = intToHexStr(desc->type);
+    showString(shtctl, sht, gap, y, color, pType);
+}
+
+void message_box(struct SHTCTL *shtctl, char *title) {
+    struct SHEET *sht_win;
+    unsigned char *buf_win;
+
+    sht_win = sheet_alloc(shtctl);
+    buf_win = (unsigned char *)memman_alloc_4k(memman, 160 * 68);
+    sheet_setbuf(sht_win, buf_win, 160, 68, -1);
+
+    make_window8(shtctl, sht_win, title);
+
+    showString(shtctl, sht_win, 24, 28, COL8_000000, "Welcome to");
+    showString(shtctl, sht_win, 24, 44, COL8_000000, "MyOS");
+
+    sheet_slide(shtctl, sht_win, 80, 72);
+    sheet_updown(shtctl, sht_win, 2);
+}
+
+void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title) {
+    static char closebtn[14][16] = {
+        "OOOOOOOOOOOOOOO@", "OQQQQQQQQQQQQQ$@", "OQQQQQQQQQQQQQ$@",
+        "OQQQ@@QQQQ@@QQ$@", "OQQQQ@@QQ@@QQQ$@", "OQQQQQ@@@@QQQQ$@",
+        "OQQQQQQ@@QQQQQ$@", "OQQQQQ@@@@QQQQ$@", "OQQQQ@@QQ@@QQQ$@",
+        "OQQQ@@QQQQ@@QQ$@", "OQQQQQQQQQQQQQ$@", "OQQQQQQQQQQQQQ$@",
+        "O$$$$$$$$$$$$$$@", "@@@@@@@@@@@@@@@@"};
+
+    int x, y;
+    char c;
+    int bxsize = sht->bxsize;
+    int bysize = sht->bysize;
+    boxfill8(sht->buf, bxsize, COL8_C6C6C6, 0, 0, bxsize - 1, 0);
+    boxfill8(sht->buf, bxsize, COL8_FFFFFF, 1, 1, bxsize - 2, 1);
+    boxfill8(sht->buf, bxsize, COL8_C6C6C6, 0, 0, 0, bysize - 1);
+    boxfill8(sht->buf, bxsize, COL8_FFFFFF, 1, 1, 1, bysize - 1);
+    boxfill8(sht->buf, bxsize, COL8_848484, bxsize - 2, 1, bxsize - 2,
+             bysize - 2);
+    boxfill8(sht->buf, bxsize, COL8_000000, bxsize - 1, 0, bxsize - 1,
+             bysize - 1);
+    boxfill8(sht->buf, bxsize, COL8_C6C6C6, 2, 2, bxsize - 3, bysize - 3);
+    boxfill8(sht->buf, bxsize, COL8_000084, 3, 3, bxsize - 4, 20);
+    boxfill8(sht->buf, bxsize, COL8_848484, 1, bysize - 2, bxsize - 2,
+             bysize - 2);
+    boxfill8(sht->buf, bxsize, COL8_000000, 0, bysize - 1, bxsize - 1,
+             bysize - 1);
+
+    showString(shtctl, sht, 24, 4, COL8_FFFFFF, title);
+
+    for (y = 0; y < 14; y++) {
+        for (x = 0; x < 16; x++) {
+            c = closebtn[y][x];
+            if (c == '@') {
+                c = COL8_000000;
+            } else if (c == '$') {
+                c = COL8_848484;
+            } else if (c == 'Q') {
+                c = COL8_C6C6C6;
+            } else {
+                c = COL8_FFFFFF;
+            }
+
+            sht->buf[(5 + y) * sht->bxsize + (sht->bxsize - 21 + x)] = c;
+        }
+    }
+
+    return;
 }

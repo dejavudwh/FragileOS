@@ -1,4 +1,4 @@
-#define MEMMAN_FREES 4096
+#define  MEMMAN_FREES  4096
 
 struct FREEINFO {
     unsigned int addr, size;
