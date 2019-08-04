@@ -1,4 +1,5 @@
 #include "../memory/mem_util.h"
+#include "win_sheet.h"
 
 #define COL8_000000 0
 #define COL8_FF0000 1
@@ -45,8 +46,6 @@ struct BOOTINFO {
 void initBootInfo(struct BOOTINFO* pBootInfo);
 
 extern char systemFont[16];
-extern char testData[4];
-// extern int* dwMCRNumber;
 
 void showFont8(char* vram, int xsize, int x, int y, char c, char* font);
 
@@ -59,7 +58,6 @@ void putblock(char* vram, int vxsize, int pxsize, int pysize, int px0, int py0,
 void init_mouse_cursor(char* mouse, char bc);
 void intHandlerFromC(char* esp);
 
-static char mcursor[256];
 static struct BOOTINFO bootInfo;
 
 static char keyval[5] = {'0', 'X', 0, 0, 0};
@@ -94,7 +92,7 @@ char* intToHexStr(unsigned int d);
 void init_keyboard(void);
 void enable_mouse(struct MOUSE_DEC* mdec);
 
-void show_mouse_info();
+void show_mouse_info(struct SHTCTL* shtctl, struct SHEET* sht_mouse);
 int mouse_decode(struct MOUSE_DEC* mdec, unsigned char dat);
 
 struct AddrRangeDesc {
@@ -110,12 +108,19 @@ char* get_addr_buffer(void);
 void showMemoryInfo(struct AddrRangeDesc* desc, char* vram, int page, int xsize,
                     int color);
 
+void init_screen8(char* vram, int x, int y);
+
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
+static unsigned char *buf_back, buf_mouse[256];
+#define COLOR_INVISIBLE 99
+
 void launch(void) {
     initBootInfo(&bootInfo);
     char* vram = bootInfo.vgaRam;
     xsize = bootInfo.screenX, ysize = bootInfo.screenY;
+    struct SHTCTL* shtctl;
+    struct SHEET *sht_back = 0, *sht_mouse = 0;
 
     fifo8_init(&keyinfo, 32, keybuf);
     fifo8_init(&mouseinfo, 128, mousebuf);
@@ -123,6 +128,64 @@ void launch(void) {
     init_palette();
     init_keyboard();
 
+    int memCnt = get_memory_block_count();
+
+    struct AddrRangeDesc* memDesc = (struct AddrRangeDesc*)get_addr_buffer();
+    memman_init(memman);
+    memman_free(memman, 0x001008000, 0x3FEE8000);
+
+    shtctl = shtctl_init(memman, vram, xsize, ysize);
+    sht_back = sheet_alloc(shtctl);
+    sht_mouse = sheet_alloc(shtctl);
+    buf_back = (unsigned char*)memman_alloc_4k(memman, xsize * ysize);
+
+    sheet_setbuf(sht_back, buf_back, xsize, ysize, COLOR_INVISIBLE);
+    sheet_setbuf(sht_mouse, buf_mouse, 16, 16, COLOR_INVISIBLE);
+
+    init_screen8(buf_back, xsize, ysize);
+
+    init_mouse_cursor(buf_mouse, COLOR_INVISIBLE);
+    sheet_slide(shtctl, sht_back, 0, 0);
+
+    mx = (xsize - 16) / 2;
+    my = (ysize - 28 - 16) / 2;
+    sheet_slide(shtctl, sht_mouse, mx, my);
+
+    sheet_updown(shtctl, sht_back, 0);
+
+    sheet_updown(shtctl, sht_mouse, 1);
+
+    io_sti();
+    enable_mouse(&mdec);
+
+    int data = 0;
+    int count = 0;
+    for (;;) {
+        io_cli();
+        if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) == 0) {
+            io_stihlt();
+        } else if (fifo8_status(&keyinfo) != 0) {
+            io_sti();
+            data = fifo8_get(&keyinfo);
+
+            if (data == 0x1C) {
+                showMemoryInfo(memDesc + count, buf_back, count, xsize,
+                               COL8_FFFFFF);
+                count = (count + 1);
+                if (count > memCnt) {
+                    count = 0;
+                }
+
+                sheet_refresh(shtctl);
+            }
+
+        } else if (fifo8_status(&mouseinfo) != 0) {
+            show_mouse_info(shtctl, sht_mouse);
+        }
+    }
+}
+
+void init_screen8(char* vram, int xsize, int ysize) {
     boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 17);
     boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 16, xsize - 1, ysize - 16);
     boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 15, xsize - 1, ysize - 15);
@@ -145,50 +208,6 @@ void launch(void) {
              ysize - 3);
 
     showString(vram, xsize, 125, 60, COL8_FFFFFF, "Fragile OS");
-
-    mx = (xsize - 16) / 2;
-    my = (ysize - 28 - 16) / 2;
-    init_mouse_cursor(mcursor, COL8_008484);
-    putblock(vram, xsize, 16, 16, mx, my, mcursor, 16);
-
-    int memCnt = get_memory_block_count();
-
-    struct AddrRangeDesc* memDesc = (struct AddrRangeDesc*)get_addr_buffer();
-
-    memman_init(memman);
-    memman_free(memman, 0x001080000, 0x3FEE8000);
-    int memtotal = memman_total(memman) / (1024 * 1024);
-    char* pMemTotal = intToHexStr(memtotal);
-    showString(vram, xsize, 0, 0, COL8_FFFFFF, "total mem is: ");
-    showString(vram, xsize, 17 * 8, 0, COL8_FFFFFF, pMemTotal);
-    showString(vram, xsize, 28 * 8, 0, COL8_FFFFFF, " MB");
-
-    io_sti();
-    enable_mouse(&mdec);
-
-    int data = 0;
-    int count = 0;
-    for (;;) {
-        io_cli();
-        if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) == 0) {
-            io_stihlt();
-        } else if (fifo8_status(&keyinfo) != 0) {
-            io_sti();
-            data = fifo8_get(&keyinfo);
-
-            if (data == 0x1C) {
-                showMemoryInfo(memDesc + count, vram, count, xsize,
-                               COL8_FFFFFF);
-                count = (count + 1);
-                if (count > memCnt) {
-                    count = 0;
-                }
-            }
-
-        } else if (fifo8_status(&mouseinfo) != 0) {
-            show_mouse_info();
-        }
-    }
 }
 
 void computeMousePosition(struct MOUSE_DEC* mdec) {
@@ -208,26 +227,21 @@ void computeMousePosition(struct MOUSE_DEC* mdec) {
     if (my > ysize - 16) {
         my = ysize - 16;
     }
+
+    boxfill8(buf_back, xsize, COL8_008484, 0, 0, 79, 15);
+    showString(buf_back, xsize, 0, 0, COL8_FFFFFF, "mouse move");
 }
 
-void eraseMouse(char* vram) {
-    boxfill8(vram, xsize, COL8_008484, mx, my, mx + 15, my + 15);
-}
-
-void drawMouse(char* vram) {
-    putblock(vram, xsize, 16, 16, mx, my, mcursor, 16);
-}
-
-void show_mouse_info(void) {
-    char* vram = bootInfo.vgaRam;
+void show_mouse_info(struct SHTCTL* shtctl, struct SHEET* sht_mouse) {
+    char* vram = buf_back;
     unsigned char data = 0;
 
     io_sti();
     data = fifo8_get(&mouseinfo);
     if (mouse_decode(&mdec, data) != 0) {
-        eraseMouse(vram);
         computeMousePosition(&mdec);
-        drawMouse(vram);
+
+        sheet_slide(shtctl, sht_mouse, mx, my);
     }
 }
 
@@ -575,88 +589,3 @@ void showMemoryInfo(struct AddrRangeDesc* desc, char* vram, int page, int xsize,
     char* pType = intToHexStr(desc->type);
     showString(vram, xsize, gap, y, color, pType);
 }
-/*
-void memman_init(struct MEMMAN *man) {
-    man->frees = 0;
-    man->maxfrees = 0;
-    man->lostsize = 0;
-    man->losts = 0;
-}
-
-unsigned int memman_total(struct MEMMAN *man) {
-    unsigned int i, t = 0;
-    for (i = 0; i < man->frees; i++) {
-        t += man->free[i].size;
-    }
-
-    return t;
-}
-
-
-unsigned int memman_alloc(struct MEMMAN *man, unsigned int size) {
-    unsigned int i, a;
-    for (i = 0; i < man->frees; i++) {
-        if (man->free[i].size >= size) {
-            a = man->free[i].addr;
-            man->free[i].size -= size;
-            if (man->free[i].size == 0) {
-                man->frees--;
-            }
-
-            return a;
-        }
-    }
-
-    return 0;
-}
-
-int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
-    int i, j;
-    for (i = 0; i < man->frees; i++) {
-        if (man->free[i].addr > addr) {
-            break;
-        }
-    }
-
-    if (i > 0) {
-        if (man->free[i-1].addr + man->free[i-1].size == addr) {
-           man->free[i-1].size += size;
-           if (i < man->frees) {
-               if (addr + size == man->free[i].addr) {
-                   man->free[i-1].size += man->free[i].size;
-                   man->frees--;
-               }
-           }
-
-           return 0;
-        }
-    }
-
-    if (i < man->frees) {
-        if (addr + size == man->free[i].addr) {
-           man->free[i].addr = addr;
-           man->free[i].size += size;
-           return 0;
-        }
-    }
-
-    if (man->frees < MEMMAN_FREES) {
-        for (j = man->frees; j > i; j--) {
-            man->free[j] = man->free[j-1];
-        }
-
-        man->frees++;
-        if (man->maxfrees < man->frees) {
-            man->maxfrees = man->frees;
-        }
-
-        man->free[i].addr = addr;
-        man->free[i].size = size;
-        return 0;
-    }
-
-    man->losts++;
-    man->lostsize += size;
-    return -1;
-}
-*/
