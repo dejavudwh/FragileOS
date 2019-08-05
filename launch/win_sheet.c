@@ -22,6 +22,7 @@ struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram,
 }
 
 #define SHEET_USE 1
+
 struct SHEET *sheet_alloc(struct SHTCTL *ctl) {
     struct SHEET *sht;
     int i;
@@ -59,6 +60,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 
     sht->height = height;
 
+    //设置完高度开始进行图层高度调整
     if (old > height) {
         if (height >= 0) {
             for (h = old; h > height; h--) {
@@ -68,6 +70,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 
             ctl->sheets[height] = sht;
         } else {
+            //去掉图层
             if (ctl->top > old) {
                 for (h = old; h < ctl->top; h++) {
                     ctl->sheets[h] = ctl->sheets[h + 1];
@@ -89,6 +92,7 @@ void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height) {
 
             ctl->sheets[height] = sht;
         } else {
+            //弹出最小化的图层
             for (h = ctl->top; h >= height; h--) {
                 ctl->sheets[h + 1] = ctl->sheets[h];
                 ctl->sheets[h + 1]->height = h + 1;
@@ -147,6 +151,7 @@ void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1) {
             vy = sht->vy0 + by;
             for (bx = 0; bx < sht->bxsize; bx++) {
                 vx = sht->vx0 + bx;
+                //只刷新局部区域
                 if (vx0 <= vx && vx < vx1 && vy0 <= vy && vy < vy1) {
                     c = buf[by * sht->bxsize + bx];
                     if (c != sht->col_inv) {

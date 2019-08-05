@@ -1,5 +1,5 @@
 ; Disassembly of file: ckernel.o
-; Mon Aug  5 10:41:50 2019
+; Mon Aug  5 23:31:10 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386

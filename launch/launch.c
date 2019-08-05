@@ -38,6 +38,9 @@ void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
               int x0, int y0);
 
+/*
+    vgaram显存地址，screenXY屏幕宽度
+*/
 struct BOOTINFO {
     char *vgaRam;
     short screenX, screenY;
@@ -45,6 +48,9 @@ struct BOOTINFO {
 
 void initBootInfo(struct BOOTINFO *pBootInfo);
 
+/*
+    fonts.inc
+ */
 extern char systemFont[16];
 
 void showFont8(char *vram, int xsize, int x, int y, char c, char *font);
@@ -62,6 +68,11 @@ static struct BOOTINFO bootInfo;
 
 static char keyval[5] = {'0', 'X', 0, 0, 0};
 
+/*
+    接收数据的缓冲
+    buf 缓冲数据
+    p 接下要读入的数据
+*/
 struct FIFO8 {
     unsigned char *buf;
     int p, q, size, free, flags;
@@ -73,6 +84,13 @@ static struct FIFO8 mouseinfo;
 static char keybuf[32];
 static char mousebuf[128];
 
+/*
+    模拟鼠标
+    buf 接收的三个数据
+    phase 已经接收了几个数据
+    x,y 鼠标坐标偏移
+    btn 鼠标按下的键
+*/
 struct MOUSE_DEC {
     unsigned char buf[3], phase;
     int x, y, btn;
@@ -96,6 +114,9 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
                      struct SHEET *sht_mouse);
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 
+/*
+    地址范围描述符
+ */
 struct AddrRangeDesc {
     unsigned int baseAddrLow;
     unsigned int baseAddrHigh;
@@ -120,6 +141,9 @@ static int xsize = 0, ysize = 0;
 static unsigned char *buf_back, buf_mouse[256];
 #define COLOR_INVISIBLE 99
 
+/*
+    内核加载时的一些初始化启动操作
+ */
 void launch(void) {
     initBootInfo(&bootInfo);
     char *vram = bootInfo.vgaRam;
@@ -190,6 +214,9 @@ void launch(void) {
     }
 }
 
+/*
+    绘制一个桌面
+ */
 void init_screen8(char *vram, int xsize, int ysize) {
     boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 17);
     boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 16, xsize - 1, ysize - 16);
@@ -282,7 +309,7 @@ void set_palette(int start, int end, unsigned char *rgb) {
     int i, eflags;
     eflags = io_load_eflags();
     io_cli();
-    io_out8(0x03c8, start);  
+    io_out8(0x03c8, start);
     for (i = start; i <= end; i++) {
         io_out8(0x03c9, rgb[0] / 4);
         io_out8(0x03c9, rgb[1] / 4);
