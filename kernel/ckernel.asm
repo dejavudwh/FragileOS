@@ -1,5 +1,5 @@
 ; Disassembly of file: ckernel.o
-; Sun Aug  4 15:41:32 2019
+; Mon Aug  5 10:41:50 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386
@@ -2875,7 +2875,7 @@ _closebtn.2364:                                         ; byte
 
 
 ?_131:                                                  
-        db 77H, 69H, 6EH, 64H, 6FH, 77H, 6EH, 00H       ; 0000 _ windown.
+        db 77H, 69H, 6EH, 64H, 6FH, 77H, 73H, 00H       ; 0000 _ windows.
 
 ?_132:                                                  ; byte
         db 69H, 6DH, 70H, 72H, 6FH, 76H, 65H, 20H       ; 0008 _ improve 

@@ -156,7 +156,7 @@ void launch(void) {
     my = (ysize - 28 - 16) / 2;
     sheet_slide(shtctl, sht_mouse, mx, my);
 
-    message_box(shtctl, "windown");
+    message_box(shtctl, "windows");
 
     sheet_updown(shtctl, sht_back, 0);
 
@@ -282,7 +282,7 @@ void set_palette(int start, int end, unsigned char *rgb) {
     int i, eflags;
     eflags = io_load_eflags();
     io_cli();
-    io_out8(0x03c8, start);  // set  palette number
+    io_out8(0x03c8, start);  
     for (i = start; i <= end; i++) {
         io_out8(0x03c9, rgb[0] / 4);
         io_out8(0x03c9, rgb[1] / 4);
