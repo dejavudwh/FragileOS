@@ -24,9 +24,10 @@ struct SHEET {
     top 表示当前要显示的层
     sheets0 是用来存储图层对象的数组
     sheets 是指针数组，用来指向下面图层数组中的对应图层对象
+    map 屏幕上每个像素点对图层标号的映射
  */
 struct SHTCTL {
-    unsigned char *vram;
+    unsigned char *vram, *map;
     int xsize, ysize, top;
     struct SHEET *sheets[MAX_SHEETS];
     struct SHEET sheets0[MAX_SHEETS];
@@ -74,4 +75,9 @@ void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0);
     图层绘制
     h0 当前图层高度
  */
-void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0, int h1);
+
+/*
+    更新屏幕像素点对图层标号的映射
+ */
+void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
