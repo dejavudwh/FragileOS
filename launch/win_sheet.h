@@ -72,5 +72,6 @@ void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0);
 
 /*
     图层绘制
+    h0 当前图层高度
  */
-void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1);
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
