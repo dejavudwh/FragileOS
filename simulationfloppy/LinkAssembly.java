@@ -48,7 +48,7 @@ public class LinkAssembly {
 					do {
 						lineText = fileReader.readLine();
 						lineText = subSemi(lineText);
-					} while (!lineText.contains(":"));
+					} while (lineText.contains(".rdata") || !lineText.contains(":"));
 				}		
 				fileBuffer.append(lineText).append("\r\n");
 			}

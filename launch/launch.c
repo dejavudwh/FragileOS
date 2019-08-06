@@ -1,3 +1,4 @@
+#include "../interrupt/queue.h"
 #include "../memory/mem_util.h"
 #include "win_sheet.h"
 
@@ -71,17 +72,6 @@ static struct BOOTINFO bootInfo;
 
 static char keyval[5] = {'0', 'X', 0, 0, 0};
 
-/*
-    接收数据的缓冲
-    buf 缓冲数据
-    p 接下要读入的数据
-    free 还有空闲的buf空位
-*/
-struct FIFO8 {
-    unsigned char *buf;
-    int p, q, size, free, flags;
-};
-
 static struct FIFO8 keyinfo;
 static struct FIFO8 mouseinfo;
 
@@ -101,11 +91,6 @@ struct MOUSE_DEC {
 };
 
 static struct MOUSE_DEC mdec;
-
-void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
-int fifo8_put(struct FIFO8 *fifo, unsigned char data);
-int fifo8_get(struct FIFO8 *fifo);
-int fifo8_status(struct FIFO8 *fifo);
 
 char charToHexVal(char c);
 char *charToHexStr(unsigned char c);
@@ -516,51 +501,6 @@ void intHandlerForMouse(char *esp) {
     data = io_in8(PORT_KEYDAT);
     fifo8_put(&mouseinfo, data);
 }
-
-void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf) {
-    fifo->size = size;
-    fifo->buf = buf;
-    fifo->free = size;
-    fifo->flags = 0;
-    fifo->p = 0;
-    fifo->q = 0;
-    return;
-}
-
-#define FLAGS_OVERRUN 0x0001
-int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
-    if (fifo->free == 0) {
-        fifo->flags |= FLAGS_OVERRUN;
-        return -1;
-    }
-
-    fifo->buf[fifo->p] = data;
-    fifo->p++;
-    if (fifo->p == fifo->size) {
-        fifo->p = 0;
-    }
-
-    fifo->free--;
-    return 0;
-}
-
-int fifo8_get(struct FIFO8 *fifo) {
-    int data;
-    if (fifo->free == fifo->size) {
-        return -1;
-    }
-
-    data = fifo->buf[fifo->q];
-    fifo->q++;
-    if (fifo->q == fifo->size) {
-        fifo->q = 0;
-    }
-
-    fifo->free++;
-    return data;
-}
-
-int fifo8_status(struct FIFO8 *fifo) { return fifo->size - fifo->free; }
 
 /*
     对鼠标发送回来的三次一字节信息进行解码
