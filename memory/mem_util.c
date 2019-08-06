@@ -43,9 +43,11 @@ int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
     }
 
     if (i > 0) {
+        //如果前一块内存块可以和需要释放的内存块合并
         if (man->free[i - 1].addr + man->free[i - 1].size == addr) {
             man->free[i - 1].size += size;
             if (i < man->frees) {
+                //如果和后一块也可以合并
                 if (addr + size == man->free[i].addr) {
                     man->free[i - 1].size += man->free[i].size;
                     man->frees--;
@@ -56,6 +58,7 @@ int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
         }
     }
 
+    //和后一块可以合并
     if (i < man->frees) {
         if (addr + size == man->free[i].addr) {
             man->free[i].addr = addr;
@@ -64,6 +67,7 @@ int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
         }
     }
 
+    //要释放的内存块应该在头尾
     if (man->frees < MEMMAN_FREES) {
         for (j = man->frees; j > i; j--) {
             man->free[j] = man->free[j - 1];
@@ -79,6 +83,7 @@ int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
         return 0;
     }
 
+    //如果都不符合就丢弃
     man->losts++;
     man->lostsize += size;
     return -1;
