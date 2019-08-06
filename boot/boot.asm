@@ -29,12 +29,12 @@ read_floppy:                                ;每次都把扇区写入缓存地�
     cmp          byte [load_count], 0       ;比较load_count地址处的值，如果=0就跳转到begin_load
     je           begin_load
     
-    mov          CL,  1                     ;CL 用来存储扇区号
+    mov          bx, 0
+    inc          CL
+    mov          AH, 0x02                   ;AH = 02 表示要做的是读盘操作
+    mov          AL, 1                      ;AL 表示要练习读取几个扇区
+    mov          DL, 0                      ;驱动器编号，一般我们只有一个软盘驱动器，所以写死
 
-    mov          AH,  0x02                  ;AH = 02 表示要做的是读盘操作
-    mov          AL,  18                    ;AL 表示要练习读取几个扇区
-    mov          DL,  0                     ;驱动器编号，一般我们只有一个软盘驱动器，所以写死   
-                                            ;为0
     int          0x13                       ;调用BIOS中断实现磁盘读取功能
     jc           fin
     
@@ -43,7 +43,7 @@ copySector:                                 ;进行单字节的拷贝
     push    di
     push    cx
 
-    mov  cx  0200h                           ;需要拷贝512字节
+    mov  cx, 0200h                           ;需要拷贝512字节
     mov  di, 0
     mov  si, 0
     mov  ax, word [load_section]             ;放入段基址

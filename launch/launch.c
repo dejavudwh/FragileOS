@@ -137,7 +137,7 @@ void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
 
 void init_screen8(char *vram, int x, int y);
 
-void message_box(struct SHTCTL *shtctl, char *title);
+struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
 void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title);
 
 static int mx = 0, my = 0;
@@ -155,7 +155,7 @@ void launch(void) {
     struct SHTCTL *shtctl;
     struct SHEET *sht_back = 0, *sht_mouse = 0;
 
-    fifo8_init(&keyinfo, 32, keybuf);   
+    fifo8_init(&keyinfo, 32, keybuf);
     fifo8_init(&mouseinfo, 128, mousebuf);
 
     init_palette();
@@ -184,7 +184,7 @@ void launch(void) {
     my = (ysize - 28 - 16) / 2;
     sheet_slide(shtctl, sht_mouse, mx, my);
 
-    message_box(shtctl, "windows");
+    struct SHEET *shtMsgBox = message_box(shtctl, "counter");
 
     sheet_updown(shtctl, sht_back, 0);
 
@@ -195,10 +195,16 @@ void launch(void) {
 
     int data = 0;
     int count = 0;
+    int counter = 0;
     for (;;) {
+        char *pStr = intToHexStr(counter);
+        counter++;
+        boxfill8(shtMsgBox->buf, 160, COL8_C6C6C6, 40, 28, 119, 43);
+        showString(shtctl, shtMsgBox, 40, 28, COL8_000000, pStr);
+
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) == 0) {
-            io_stihlt();
+            io_sti();
         } else if (fifo8_status(&keyinfo) != 0) {
             io_sti();
             data = fifo8_get(&keyinfo);
@@ -641,7 +647,7 @@ void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
     showString(shtctl, sht, gap, y, color, pType);
 }
 
-void message_box(struct SHTCTL *shtctl, char *title) {
+struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     struct SHEET *sht_win;
     unsigned char *buf_win;
 
@@ -656,6 +662,8 @@ void message_box(struct SHTCTL *shtctl, char *title) {
 
     sheet_slide(shtctl, sht_win, 80, 72);
     sheet_updown(shtctl, sht_win, 2);
+
+    return sht_win;
 }
 
 void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title) {
