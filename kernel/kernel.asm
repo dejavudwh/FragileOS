@@ -253,6 +253,7 @@ _io_cli:
 _io_sti:
   STI
   RET
+  
 _io_stihlt:
   STI
   HLT
@@ -298,7 +299,7 @@ _io_load_eflags:
     pop  eax
     ret
 
-_io_store_eflags:
+_io_store_eflags:                                  ; 恢复中断
     mov eax, [esp + 4]
     push eax
     popfd

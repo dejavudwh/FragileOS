@@ -20,6 +20,9 @@
 
 #define PORT_KEYDAT 0x0060
 #define PIC_OCW2 0x20
+/*
+    8259A端口
+ */
 #define PIC1_OCW2 0xA0
 
 struct MEMMAN *memman = (struct MEMMAN *)0x100000;
@@ -72,6 +75,7 @@ static char keyval[5] = {'0', 'X', 0, 0, 0};
     接收数据的缓冲
     buf 缓冲数据
     p 接下要读入的数据
+    free 还有空闲的buf空位
 */
 struct FIFO8 {
     unsigned char *buf;
@@ -151,7 +155,7 @@ void launch(void) {
     struct SHTCTL *shtctl;
     struct SHEET *sht_back = 0, *sht_mouse = 0;
 
-    fifo8_init(&keyinfo, 32, keybuf);
+    fifo8_init(&keyinfo, 32, keybuf);   
     fifo8_init(&mouseinfo, 128, mousebuf);
 
     init_palette();
@@ -305,6 +309,9 @@ void init_palette(void) {
     return;
 }
 
+/*
+    设置调色板
+ */
 void set_palette(int start, int end, unsigned char *rgb) {
     int i, eflags;
     eflags = io_load_eflags();
@@ -462,6 +469,7 @@ char *intToHexStr(unsigned int d) {
 
 void wait_KBC_sendready() {
     for (;;) {
+        //判断鼠标电路能否接收信息   返回的第二个比特位为0即可
         if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0) {
             break;
         }
@@ -470,8 +478,10 @@ void wait_KBC_sendready() {
 
 void init_keyboard(void) {
     wait_KBC_sendready();
+    //让键盘进入信息接收状态
     io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
     wait_KBC_sendready();
+    //启动鼠标电路
     io_out8(PORT_KEYDAT, KBC_MODE);
     return;
 }
@@ -483,6 +493,7 @@ void enable_mouse(struct MOUSE_DEC *mdec) {
     wait_KBC_sendready();
     io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
     wait_KBC_sendready();
+    //激活鼠标，调用鼠标中断
     io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
 
     mdec->phase = 0;
@@ -491,7 +502,9 @@ void enable_mouse(struct MOUSE_DEC *mdec) {
 
 void intHandlerForMouse(char *esp) {
     unsigned char data;
+    //让从8259A继续接收中断 OCW2 - 中断优先级
     io_out8(PIC1_OCW2, 0x20);
+    //让主8259A继续接收中断
     io_out8(PIC_OCW2, 0x20);
 
     data = io_in8(PORT_KEYDAT);
@@ -543,6 +556,9 @@ int fifo8_get(struct FIFO8 *fifo) {
 
 int fifo8_status(struct FIFO8 *fifo) { return fifo->size - fifo->free; }
 
+/*
+    对鼠标发送回来的三次一字节信息进行解码
+ */
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat) {
     if (mdec->phase == 0) {
         if (dat == 0xfa) {
@@ -636,7 +652,7 @@ void message_box(struct SHTCTL *shtctl, char *title) {
     make_window8(shtctl, sht_win, title);
 
     showString(shtctl, sht_win, 24, 28, COL8_000000, "Welcome to");
-    showString(shtctl, sht_win, 24, 44, COL8_000000, "MyOS");
+    showString(shtctl, sht_win, 24, 44, COL8_000000, "Fragile OS");
 
     sheet_slide(shtctl, sht_win, 80, 72);
     sheet_updown(shtctl, sht_win, 2);
