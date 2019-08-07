@@ -1,8 +1,10 @@
-#include "queue.h"
 #include "timer.h"
+#include "queue.h"
 
 #define PIC0_OCW2 0x20
 #define PIC1_OCW2 0xA0
+#define TIMER_FLAGS_ALLOC 1
+#define TIMER_FLAGS_USING 2
 
 static struct TIMERCTL timerctl;
 
@@ -14,34 +16,59 @@ void init_pit() {
     io_out8(PIT_CNT0, 0x2e);
 
     timerctl.count = 0;
-    timerctl.timeout = 0;
+    for (int i = 0; i < MAX_TIMER; i++) {
+        // flag == 0代表没有使用
+        timerctl.timer[i].flags = 0;
+    }
+}
+
+struct TIMER *timer_alloc() {
+    for (int i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == 0) {
+            timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+            return &timerctl.timer[i];
+        }
+    }
+
+    return 0;
+}
+
+void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data) {
+    timer->fifo = fifo;
+    timer->data = data;
+
+    return;
+}
+
+void timer_free(struct TIMER *timer) {
+    timer->flags = 0;
+    return;
+}
+
+void timer_settime(struct TIMER *timer, unsigned int timeout) {
+    timer->timeout = timeout;
+    timer->flags = TIMER_FLAGS_USING;
+    return;
 }
 
 void intHandlerForTimer(char *esp) {
+    //为持续接收信号
     io_out8(PIC0_OCW2, 0x60);
     timerctl.count++;
 
-    if (timerctl.timeout > 0) {
-        timerctl.timeout--;
-        if (timerctl.timeout == 0) {
-            fifo8_put(timerctl.fifo, timerctl.data);
+    for (int i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == TIMER_FLAGS_USING) {
+            timerctl.timer[i].timeout--;
+            if (timerctl.timer[i].timeout == 0) {
+                timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
+            }
         }
     }
 
     return;
 }
 
-void settimer(unsigned int timeout, struct FIFO8 *fifo, unsigned char data) {
-    int eflags;
-    eflags = io_load_eflags();
-    io_cli();                    //暂时停止接收中断信号
-    timerctl.timeout = timeout;  //设定时间片
-    timerctl.fifo = fifo;  //设定数据队列，内核在主循环中将监控这个队列
-    timerctl.data = data;
-    io_store_eflags(eflags);  //恢复接收中断信号
-    return;
-}
-
-struct TIMERCTL *getTimer() {
+struct TIMERCTL *getTimerController() {
     return &timerctl;
 }

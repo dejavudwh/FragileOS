@@ -1,11 +1,17 @@
 #define PIT_CTRL 0x0043
 #define PIT_CNT0 0x0040
 
-struct TIMERCTL {
-    unsigned int count;
-    unsigned int timeout;
+#define MAX_TIMER 500
+
+struct TIMER {
+    unsigned int timeout, flags;
     struct FIFO8 *fifo;
     unsigned char data;
+};
+
+struct TIMERCTL {
+    unsigned int count;
+    struct TIMER timer[MAX_TIMER];
 };
 
 /*
@@ -13,6 +19,12 @@ struct TIMERCTL {
  */
 void init_pit();
 
-struct TIMERCTL *getTimer();
+struct TIMERCTL *getTimerController();
 
-void settimer(unsigned int timeout, struct FIFO8 *fifo, unsigned char data);
+struct TIMER *timer_alloc();
+
+void timer_free(struct TIMER *timer);
+
+void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data);
+
+void timer_settime(struct TIMER *timer, unsigned int timeout);

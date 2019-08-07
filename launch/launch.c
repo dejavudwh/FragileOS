@@ -142,9 +142,21 @@ void launch(void) {
     struct SHTCTL *shtctl;
     struct SHEET *sht_back = 0, *sht_mouse = 0;
 
+    struct TIMER *timer, *timer2, *timer3;
+
     init_pit();
     fifo8_init(&timerinfo, 8, timerbuf);
-    settimer(500, &timerinfo, 1);
+    timer = timer_alloc();
+    timer_init(timer, &timerinfo, 10);
+    timer_settime(timer, 500);
+
+    timer2 = timer_alloc();
+    timer_init(timer2, &timerinfo, 2);
+    timer_settime(timer2, 300);
+
+    timer3 = timer_alloc();
+    timer_init(timer3, &timerinfo, 1);
+    timer_settime(timer3, 50);
 
     fifo8_init(&keyinfo, 32, keybuf);
     fifo8_init(&mouseinfo, 128, mousebuf);
@@ -186,12 +198,7 @@ void launch(void) {
 
     int data = 0;
     int count = 0;
-    struct TIMERCTL *timerctl = getTimer();
     for (;;) {
-        char *pStr = intToHexStr(timerctl->timeout);
-        boxfill8(shtMsgBox->buf, 160, COL8_C6C6C6, 40, 28, 119, 43);
-        showString(shtctl, shtMsgBox, 40, 28, COL8_000000, pStr);
-
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
                 fifo8_status(&timerinfo) ==
@@ -213,9 +220,24 @@ void launch(void) {
         } else if (fifo8_status(&mouseinfo) != 0) {
             show_mouse_info(shtctl, sht_back, sht_mouse);
         } else if (fifo8_status(&timerinfo) != 0) {
-            //超时发生后进入这里
             io_sti();
-            showString(shtctl, sht_back, 0, 0, COL8_FFFFFF, "5[sec]");
+            int i = fifo8_get(&timerinfo);
+            if (i == 10) {
+                showString(shtctl, sht_back, 0, 0, COL8_FFFFFF, "5[sec]");
+            } else if (i == 2) {
+                showString(shtctl, sht_back, 0, 16, COL8_FFFFFF, "3[sec]");
+            } else {
+                if (i != 0) {
+                    timer_init(timer3, &timerinfo, 0);
+                    boxfill8(buf_back, xsize, COL8_FFFFFF, 8, 96, 15, 111);
+                } else {
+                    timer_init(timer3, &timerinfo, 1);
+                    boxfill8(buf_back, xsize, COL8_008484, 8, 96, 15, 111);
+                }
+
+                timer_settime(timer3, 50);
+                sheet_refresh(shtctl, sht_back, 8, 96, 16, 112);
+            }
         }
     }
 }
