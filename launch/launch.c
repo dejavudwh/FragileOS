@@ -1,4 +1,5 @@
 #include "../interrupt/queue.h"
+#include "../interrupt/timer.h"
 #include "../memory/mem_util.h"
 #include "win_sheet.h"
 
@@ -92,6 +93,9 @@ struct MOUSE_DEC {
 
 static struct MOUSE_DEC mdec;
 
+static struct FIFO8 timerinfo;
+static char timerbuf[8];
+
 char charToHexVal(char c);
 char *charToHexStr(unsigned char c);
 char *intToHexStr(unsigned int d);
@@ -140,6 +144,10 @@ void launch(void) {
     struct SHTCTL *shtctl;
     struct SHEET *sht_back = 0, *sht_mouse = 0;
 
+    init_pit();
+    fifo8_init(&timerinfo, 8, timerbuf);
+    settimer(500, &timerinfo, 1);
+
     fifo8_init(&keyinfo, 32, keybuf);
     fifo8_init(&mouseinfo, 128, mousebuf);
 
@@ -180,15 +188,18 @@ void launch(void) {
 
     int data = 0;
     int count = 0;
-    int counter = 0;
+    struct TIMERCTL *timerctl = getTimer();
     for (;;) {
-        char *pStr = intToHexStr(counter);
-        counter++;
+        char *pStr = intToHexStr(timerctl->timeout);
+        // char *pStr2 = intToHexStr(timerctl->count);
         boxfill8(shtMsgBox->buf, 160, COL8_C6C6C6, 40, 28, 119, 43);
         showString(shtctl, shtMsgBox, 40, 28, COL8_000000, pStr);
+        // showString(shtctl, shtMsgBox, 40, 45, COL8_000000, pStr2);
 
         io_cli();
-        if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) == 0) {
+        if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
+                fifo8_status(&timerinfo) ==
+            0) {
             io_sti();
         } else if (fifo8_status(&keyinfo) != 0) {
             io_sti();
@@ -205,6 +216,10 @@ void launch(void) {
 
         } else if (fifo8_status(&mouseinfo) != 0) {
             show_mouse_info(shtctl, sht_back, sht_mouse);
+        } else if (fifo8_status(&timerinfo) != 0) {
+            //超时发生后进入这里
+            io_sti();
+            showString(shtctl, sht_back, 0, 0, COL8_FFFFFF, "5[sec]");
         }
     }
 }

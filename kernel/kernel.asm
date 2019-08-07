@@ -27,9 +27,12 @@ SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
 SelectorFont      equ   LABEL_DESC_FONT - LABEL_GDT
 
 LABEL_IDT:
-%rep  33
+%rep  32
     Gate  SelectorCode32, SpuriousHandler,  0,  DA_386IGate
 %endrep
+
+.020h:
+    Gate SelectorCode32, timerHandler,0, DA_386IGate
 
 .021h:
     Gate SelectorCode32, KeyBoardHandler, 0,  DA_386IGate
@@ -230,6 +233,22 @@ mouseHandler equ _mouseHandler - $$
      pop  es
      iretd
 
+_timerHandler:
+timerHandler equ _timerHandler - $$
+     push es
+     push ds
+     pushad
+     mov  eax, esp
+     push eax
+
+     call _intHandlerForTimer
+
+     pop  eax
+     mov  esp, eax
+     popad
+     pop  ds
+     pop  es
+     iretd
 
 _get_font_data:
     mov ax, SelectorFont
