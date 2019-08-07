@@ -27,6 +27,7 @@ void intHandlerForTimer(char *esp) {
             fifo8_put(timerctl.fifo, timerctl.data);
         }
     }
+
     return;
 }
 

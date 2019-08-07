@@ -93,4 +93,3 @@ load_section dw 0800h                       ;内核地址 0800h x 16
 fin:
     hlt                                     ;暂停
     jmp  fin
-

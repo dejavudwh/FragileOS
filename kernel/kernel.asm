@@ -160,7 +160,7 @@ init8259A:
      out  0A1h, al                                ; 向主8259A发送ICW4
      call io_delay
 
-     mov  al, 11111001b                           ; OCW[i] = 0即接收对应管线信号
+     mov  al, 11111000b                           ; OCW[i] = 0即接收对应管线信号
      out  021h, al                                ; 键盘中断
      call io_delay
 

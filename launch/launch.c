@@ -34,10 +34,8 @@ char get_font_data(int c, int offset);
 void io_hlt(void);
 void io_cli(void);
 void io_sti(void);
-void io_out(int port, int data);
 int io_load_eflags(void);
 void io_store_eflags(int eflags);
-void show_char(void);
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
@@ -191,10 +189,8 @@ void launch(void) {
     struct TIMERCTL *timerctl = getTimer();
     for (;;) {
         char *pStr = intToHexStr(timerctl->timeout);
-        // char *pStr2 = intToHexStr(timerctl->count);
         boxfill8(shtMsgBox->buf, 160, COL8_C6C6C6, 40, 28, 119, 43);
         showString(shtctl, shtMsgBox, 40, 28, COL8_000000, pStr);
-        // showString(shtctl, shtMsgBox, 40, 45, COL8_000000, pStr2);
 
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
@@ -224,9 +220,6 @@ void launch(void) {
     }
 }
 
-/*
-    绘制一个桌面
- */
 void init_screen8(char *vram, int xsize, int ysize) {
     boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 17);
     boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 16, xsize - 1, ysize - 16);
@@ -268,8 +261,6 @@ void computeMousePosition(struct SHTCTL *shtctl, struct SHEET *sht,
     if (my > ysize - 1) {
         my = ysize - 1;
     }
-
-    showString(shtctl, sht, 0, 0, COL8_FFFFFF, "improve string showing");
 }
 
 void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
@@ -315,14 +306,11 @@ void init_palette(void) {
     return;
 }
 
-/*
-    设置调色板
- */
 void set_palette(int start, int end, unsigned char *rgb) {
     int i, eflags;
     eflags = io_load_eflags();
     io_cli();
-    io_out8(0x03c8, start);
+    io_out8(0x03c8, start);  // set  palette number
     for (i = start; i <= end; i++) {
         io_out8(0x03c9, rgb[0] / 4);
         io_out8(0x03c9, rgb[1] / 4);
@@ -613,7 +601,7 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     make_window8(shtctl, sht_win, title);
 
     showString(shtctl, sht_win, 24, 28, COL8_000000, "Welcome to");
-    showString(shtctl, sht_win, 24, 44, COL8_000000, "Fragile OS");
+    showString(shtctl, sht_win, 24, 44, COL8_000000, "MyOS");
 
     sheet_slide(shtctl, sht_win, 80, 72);
     sheet_updown(shtctl, sht_win, 2);
