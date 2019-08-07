@@ -40,7 +40,7 @@ public class LinkAssembly {
 			while ((lineText = fileReader.readLine()) != null) {
 				String line = lineText.toLowerCase();
 				line = subSemi(line);
-				if (line.contains("global") || line.contains("extern") || line.contains("section") && !line.contains(".rdata")) {
+				if (line.contains("global") || line.contains("extern") || line.contains("section") || line.contains(".bss:") && !line.contains(".rdata")) {
 					continue;
 				}
 				
@@ -49,7 +49,10 @@ public class LinkAssembly {
 						lineText = fileReader.readLine();
 						lineText = subSemi(lineText);
 					} while (lineText.contains(".rdata") || !lineText.contains(":"));
-				}		
+				}	
+
+				//TODO Other variables need to be modified, for now
+				lineText = lineText.replaceAll(".bss", "_timerctl");
 				fileBuffer.append(lineText).append("\r\n");
 			}
 			
