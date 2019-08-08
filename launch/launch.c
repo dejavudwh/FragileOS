@@ -71,6 +71,14 @@ static struct BOOTINFO bootInfo;
 
 static char keyval[5] = {'0', 'X', 0, 0, 0};
 
+static char keytable[0x54] = {
+    0, 0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^',
+    0, 0,   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '@', '[',
+    0, 0,   'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', ':', 0,
+    0, ']', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 0,   '*',
+    0, ' ', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0, '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.'};
+
 static struct FIFO8 keyinfo;
 static struct FIFO8 mouseinfo;
 
@@ -215,6 +223,9 @@ void launch(void) {
                 if (count > memCnt) {
                     count = 0;
                 }
+            } else if (keytable[data] != 0) {
+                char buf[2] = {keytable[data], 0};
+                showString(shtctl, shtMsgBox, 40, 28, COL8_000000, buf);
             }
 
         } else if (fifo8_status(&mouseinfo) != 0) {
@@ -243,25 +254,25 @@ void launch(void) {
 }
 
 void init_screen8(char *vram, int xsize, int ysize) {
-    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 17);
-    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 16, xsize - 1, ysize - 16);
-    boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 15, xsize - 1, ysize - 15);
-    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 14, xsize - 1, ysize - 1);
+    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 42);
+    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 41, xsize - 1, ysize - 41);
+    boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 40, xsize - 1, ysize - 40);
+    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 39, xsize - 1, ysize - 1);
 
-    boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 12, 30, ysize - 12);
-    boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 12, 2, ysize - 4);
-    boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 30, ysize - 4);
-    boxfill8(vram, xsize, COL8_848484, 30, ysize - 11, 30, ysize - 5);
-    boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 30, ysize - 3);
-    boxfill8(vram, xsize, COL8_000000, 31, ysize - 12, 31, ysize - 3);
+    boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 37, 72, ysize - 37);
+    boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 37, 2, ysize - 4);
+    boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 72, ysize - 4);
+    boxfill8(vram, xsize, COL8_848484, 72, ysize - 36, 72, ysize - 5);
+    boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 72, ysize - 3);
+    boxfill8(vram, xsize, COL8_000000, 73, ysize - 37, 73, ysize - 3);
 
-    boxfill8(vram, xsize, COL8_848484, xsize - 36, ysize - 12, xsize - 4,
-             ysize - 12);
-    boxfill8(vram, xsize, COL8_848484, xsize - 36, ysize - 11, xsize - 36,
+    boxfill8(vram, xsize, COL8_848484, xsize - 61, ysize - 37, xsize - 4,
+             ysize - 37);
+    boxfill8(vram, xsize, COL8_848484, xsize - 61, ysize - 36, xsize - 61,
              ysize - 4);
-    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 36, ysize - 3, xsize - 4,
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 61, ysize - 3, xsize - 4,
              ysize - 3);
-    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 12, xsize - 3,
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 37, xsize - 3,
              ysize - 3);
 }
 
@@ -300,9 +311,9 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
 }
 
 void initBootInfo(struct BOOTINFO *pBootInfo) {
-    pBootInfo->vgaRam = (char *)0xa0000;
-    pBootInfo->screenX = 320;
-    pBootInfo->screenY = 200;
+    pBootInfo->vgaRam = (char *)0xe0000000;
+    pBootInfo->screenX = 800;
+    pBootInfo->screenY = 600;
 }
 
 void showString(struct SHTCTL *shtctl, struct SHEET *sht, int x, int y,
@@ -621,9 +632,6 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     sheet_setbuf(sht_win, buf_win, 160, 68, -1);
 
     make_window8(shtctl, sht_win, title);
-
-    showString(shtctl, sht_win, 24, 28, COL8_000000, "Welcome to");
-    showString(shtctl, sht_win, 24, 44, COL8_000000, "MyOS");
 
     sheet_slide(shtctl, sht_win, 80, 72);
     sheet_updown(shtctl, sht_win, 2);

@@ -60,7 +60,7 @@ LABEL_BEGIN:                                      ; 初始化操作
 
 ComputeMemory:
      mov   ebx, 0
-     mov   di, MemChkBuf                          ; BIOS会把地址范围描述符写入这个地址
+     mov   di,  MemChkBuf                         ; BIOS会把地址范围描述符写入这个地址
 .loop:                                            ; 检测内存步骤
      mov   eax, 0E820h      
      mov   ecx, 20                                ; 指定di的内存大小，一般总是填充20
@@ -77,8 +77,8 @@ LABEL_MEM_CHK_FAIL:
     mov    dword [dwMCRNumber], 0
 
 LABEL_MEM_CHK_OK:
-     mov   al, 0x13                               ; 进入图形模式
-     mov   ah, 0
+     mov   bx, 0x4103                             ; 设置显卡 1280*1024
+     mov   ax, 0x4f02
      int   0x10
 
      xor   eax, eax                               ; 计算物理内存地址
