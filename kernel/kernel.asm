@@ -13,8 +13,13 @@ LABEL_DESC_CODE32:  Descriptor        0,            0fffffh,           DA_C    |
 LABEL_DESC_VIDEO:   Descriptor        0B8000h,      0fffffh,           DA_DRW
 LABEL_DESC_VRAM:    Descriptor        0,            0fffffh,           DA_DRW  | DA_LIMIT_4K
 
-LABEL_DESC_STACK:   Descriptor        0,            TopOfStack,        DA_DRWA | DA_32
+LABEL_DESC_STACK:   Descriptor        0,            LenOfStackSection, DA_DRWA | DA_32
 LABEL_DESC_FONT:    Descriptor        0,            0fffffh,           DA_DRW  | DA_LIMIT_4K  
+
+LABEL_DESC_6:       Descriptor        0,            0fffffh,           0409Ah
+LABEL_DESC_7:       Descriptor        0,            0,                 0
+LABEL_DESC_8:       Descriptor        0,            0,                 0
+LABEL_DESC_9:       Descriptor        0,            0,                 0
 
 GdtLen     equ    $ - LABEL_GDT                           
 GdtPtr     dw     GdtLen - 1
@@ -127,7 +132,7 @@ LABEL_MEM_CHK_OK:
      or    eax , 1
      mov   cr0, eax
 
-     jmp   dword  SelectorCode32: 0
+     jmp   dword  1*8: 0
 
 init8259A:
      mov  al, 011h                                ; 向主8259A发生ICW1
@@ -182,7 +187,7 @@ io_delay:
 LABEL_SEG_CODE32:
      mov  ax,  SelectorStack                       ; 初始化堆栈
      mov  ss,  ax
-     mov  esp, TopOfStack
+     mov  esp, TopOfStack1
 
      mov  ax,  SelectorVram                        
      mov  ds,  ax
@@ -332,6 +337,33 @@ _get_addr_buffer:
     mov  eax, MemChkBuf
     ret
 
+_get_addr_gdt:
+    mov  eax, LABEL_GDT
+    ret
+
+_get_addr_code32:
+    mov  eax, LABEL_SEG_CODE32
+    ret    
+
+_load_tr:
+    LTR  [esp + 4]
+    ret
+
+_taskswitch8:
+    jmp  8*8:0
+    ret
+
+_taskswitch7:
+    jmp  7*8:0
+    ret
+
+_taskswitch6:
+    jmp  6*8:0
+    ret
+
+_taskswitch9:
+    jmp 9*8:0
+    ret
 
 SegCode32Len   equ  $ - LABEL_SEG_CODE32
 
@@ -342,13 +374,16 @@ ALIGN 32
 MemChkBuf: times 256 db 0
 dwMCRNumber:   dd 0
 
-
 [SECTION .gs]
 ALIGN 32
 [BITS 32]
 LABEL_STACK:
   times 512  db 0
-  TopOfStack  equ  $ - LABEL_STACK
+  TopOfStack1  equ  $ - LABEL_STACK
+  times 512 db 0
+  TopOfStack2 equ $ - LABEL_STACK
+
+  LenOfStackSection equ $ - LABEL_STACK
 
 
 LABEL_SYSTEM_FONT:
