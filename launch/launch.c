@@ -150,7 +150,7 @@ struct SHEET *sht_back = 0, *sht_mouse = 0;
 #define COLOR_INVISIBLE 99
 
 /* TASK */
-void testTask();
+void task_b_func();
 void load_tr(int sub);
 void taskswitch8();
 void taskswitch7();
@@ -220,74 +220,37 @@ void launch(void) {
 
     /* 以上主要是一些是初始化，下面开始主进程 */
 
+    /* 进程管理 */
     int code32_addr = get_addr_code32();
-    static struct TSS32 tss_a, tss_b;
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
-    tss_a.ldtr = 0;
-    tss_a.iomap = 0x40000000;
-    tss_b.ldtr = 0;
-    tss_b.iomap = 0x40000000;
 
-    set_segmdesc(gdt + 7, 103, (int)&tss_a, AR_TSS32);
+    struct TSS32 tss_a;
+    static struct TASK *task_a;
+    static struct TASK *task_b;
 
-    set_segmdesc(gdt + 8, 103, (int)&tss_a, AR_TSS32);
+    struct TSS32 *pTss = (struct TSS32 *)memman_alloc_4k(memman, 103);
 
-    set_segmdesc(gdt + 9, 103, (int)&tss_b, AR_TSS32);
+    //先用launch的初始化后，以后只要调用alloc就可以了
+    task_a = task_init(memman);
+    task_b = task_alloc();
+    task_b->tss.ldtr = 0;
+    task_b->tss.iomap = 0x40000000;
 
-    set_segmdesc(gdt + 6, 0xffff, testTask, 0x409a);
+    task_b->tss.eip = (int)(task_b_func - code32_addr);
+    task_b->tss.es = 0;
+    task_b->tss.cs = 1 * 8;  // 6 * 8;
+    task_b->tss.ss = 4 * 8;
+    task_b->tss.ds = 3 * 8;
+    task_b->tss.fs = 0;
+    task_b->tss.gs = 2 * 8;
 
-    //把TSS加载进内存
-    load_tr(7 * 8);
-    taskswitch8();
-    char *p = intToHexStr(tss_a.eflags);
-    showString(shtctl, sht_back, 0, 0, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.esp);
-    showString(shtctl, sht_back, 0, 16, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.es / 8);
-    showString(shtctl, sht_back, 0, 32, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.cs / 8);
-    showString(shtctl, sht_back, 0, 48, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.ss / 8);
-    showString(shtctl, sht_back, 0, 64, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.ds / 8);
-    showString(shtctl, sht_back, 0, 80, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.gs / 8);
-    showString(shtctl, sht_back, 0, 96, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.fs / 8);
-    showString(shtctl, sht_back, 0, 112, COL8_FFFFFF, p);
-
-    p = intToHexStr(tss_a.cr3);
-    showString(shtctl, sht_back, 0, 128, COL8_FFFFFF, p);
-
-    int task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024;
-    tss_b.eip = (testTask - code32_addr);
-    tss_b.eflags = 0x00000202;
-    tss_b.eax = 0;
-    tss_b.ecx = 0;
-    tss_b.edx = 0;
-    tss_b.ebx = 0;
-    tss_b.esp = 1024;  // tss_a.esp;
-    tss_b.ebp = 0;
-    tss_b.esi = 0;
-    tss_b.edi = 0;
-    tss_b.es = tss_a.es;
-    tss_b.cs = tss_a.cs;  // 6 * 8;
-    tss_b.ss = tss_a.ss;
-    tss_b.ds = tss_a.ds;
-    tss_b.fs = tss_a.fs;
-    tss_b.gs = tss_a.gs;
+    task_run(task_b);
 
     int data = 0;
     int count = 0;
-    char count2 = 0;
+    // char count2 = 0;
+    int pos = 0;
     for (;;) {
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
@@ -307,8 +270,8 @@ void launch(void) {
                 }
 
             } else if (keytable[data] != 0 && cursor_x < 144) {
-                showString(shtctl, sht_back, 50 + count2, 28, COL8_000000, "t");
-                count2 += 25;
+                // showString(shtctl, sht_back, 50 + count2, 28, COL8_000000,
+                // "t"); count2 += 25;
 
                 boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
                          cursor_x, 28, cursor_x + 7, 43);
@@ -331,10 +294,9 @@ void launch(void) {
             io_sti();
             int i = fifo8_get(&timerinfo);
             if (i == 10) {
-                showString(shtctl, sht_back, 0, 176, COL8_FFFFFF,
-                           "switch to task b");
-                // switch task
-                taskswitch9();
+                showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A");
+                timer_settime(timer, 100);
+                pos += 8;
             } else if (i == 2) {
                 showString(shtctl, sht_back, 0, 16, COL8_FFFFFF, "3[sec]");
             } else {
@@ -356,8 +318,8 @@ void launch(void) {
     }
 }
 
-void testTask() {
-    showString(shtctl, sht_back, 0, 144, COL8_FFFFFF, "enter task b");
+void task_b_func() {
+    showString(shtctl, sht_back, 0, 160, COL8_FFFFFF, "enter task b");
 
     struct FIFO8 timerinfo_b;
     char timerbuf_b[8];
@@ -369,8 +331,9 @@ void testTask() {
     timer_b = timer_alloc();
     timer_init(timer_b, &timerinfo_b, 123);
 
-    timer_settime(timer_b, 500);
+    timer_settime(timer_b, 100);
 
+    int pos = 0;
     for (;;) {
         io_cli();
         if (fifo8_status(&timerinfo_b) == 0) {
@@ -379,9 +342,9 @@ void testTask() {
             i = fifo8_get(&timerinfo_b);
             io_sti();
             if (i == 123) {
-                showString(shtctl, sht_back, 0, 160, COL8_FFFFFF,
-                           "switch back");
-                taskswitch7();
+                showString(shtctl, sht_back, pos, 176, COL8_FFFFFF, "B");
+                timer_settime(timer_b, 100);
+                pos += 8;
             }
         }
     }

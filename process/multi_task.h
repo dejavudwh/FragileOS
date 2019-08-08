@@ -16,5 +16,57 @@ struct SEGMENT_DESCRIPTOR {
     char limit_high, base_high;
 };
 
+#define MAX_TASKS 2
+#define TASK_GDT0 7
+#define SIZE_OF_TASK 112
+
+#define SIZE_OF_TASKCTL (4 + 4 + 4 * MAX_TASKS + SIZE_OF_TASK * MAX_TASKS)
+
+/*
+    描述进程
+    sel 这个进程的tss在全局描述符表下的标号
+    flags 是否已经启用 2 = active 1 = occupied 0 = empty
+    tss 即tss
+ */
+struct TASK {
+    int sel, flags;
+    struct TSS32 tss;
+};
+
+struct TASKCTL {
+    int running;
+    int now;
+    struct TASK *tasks[MAX_TASKS];
+    struct TASK tasks0[MAX_TASKS];
+};
+
+/*
+    设置描述符
+ */
 void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
                   int ar);
+
+/*
+    对所有进程初始化，并拿出当前的主线程也就是launch
+ */
+struct TASK *task_init(struct MEMMAN *memman);
+
+/*
+    分配一个线程
+ */
+struct TASK *task_alloc();
+
+/*
+    启动线程
+ */
+void task_run(struct TASK *task);
+
+/*
+    切换线程
+ */
+void task_switch();
+
+/*
+    获得任务的定时器
+ */
+struct TIMER *get_task_timer();

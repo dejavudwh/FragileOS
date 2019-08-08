@@ -1,4 +1,5 @@
 #include "timer.h"
+#include "../process/multi_task.h"
 #include "queue.h"
 
 #define PIC0_OCW2 0x20
@@ -56,13 +57,22 @@ void intHandlerForTimer(char *esp) {
     io_out8(PIC0_OCW2, 0x60);
     timerctl.count++;
 
+    char ts = 0;
+
     for (int i = 0; i < MAX_TIMER; i++) {
         if (timerctl.timer[i].flags == TIMER_FLAGS_USING) {
             timerctl.timer[i].timeout--;
             if (timerctl.timer[i].timeout == 0) {
                 timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
-                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
+                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data); 
+                if (&timerctl.timer[i] == get_task_timer()) {
+                    ts = 1;
+                }
             }
+        }
+
+        if (ts != 0) {
+            task_switch();
         }
     }
 

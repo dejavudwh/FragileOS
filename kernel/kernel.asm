@@ -365,6 +365,10 @@ _taskswitch9:
     jmp 9*8:0
     ret
 
+_farjmp:
+    jmp FAR [esp + 4]                               ; far 跨描述符的跳转 esp+4放入eip中
+    ret                                             ; 会自动往后读两字节作为描述符的下标 cs
+
 SegCode32Len   equ  $ - LABEL_SEG_CODE32
 
 
