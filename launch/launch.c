@@ -134,6 +134,9 @@ void init_screen8(char *vram, int x, int y);
 
 struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
 void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title);
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+
+static struct SHEET *shtMsgBox;
 
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
@@ -195,7 +198,8 @@ void launch(void) {
     my = (ysize - 28 - 16) / 2;
     sheet_slide(shtctl, sht_mouse, mx, my);
 
-    struct SHEET *shtMsgBox = message_box(shtctl, "counter");
+    int cursor_x = 8, cursor_c = COL8_FFFFFF;
+    shtMsgBox = message_box(shtctl, "message");
 
     sheet_updown(shtctl, sht_back, 0);
 
@@ -206,6 +210,7 @@ void launch(void) {
 
     int data = 0;
     int count = 0;
+    char count2 = 0;
     for (;;) {
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
@@ -223,9 +228,24 @@ void launch(void) {
                 if (count > memCnt) {
                     count = 0;
                 }
-            } else if (keytable[data] != 0) {
+
+            } else if (keytable[data] != 0 && cursor_x < 144) {
+                showString(shtctl, sht_back, 50 + count2, 28, COL8_000000, "t");
+                count2 += 25;
+
+                boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
+                         cursor_x, 28, cursor_x + 7, 43);
+                sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
+                              44);
+
                 char buf[2] = {keytable[data], 0};
-                showString(shtctl, shtMsgBox, 40, 28, COL8_000000, buf);
+                showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000, buf);
+                cursor_x += 8;
+
+                boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c, cursor_x,
+                         28, cursor_x + 7, 43);
+                sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
+                              44);
             }
 
         } else if (fifo8_status(&mouseinfo) != 0) {
@@ -234,20 +254,23 @@ void launch(void) {
             io_sti();
             int i = fifo8_get(&timerinfo);
             if (i == 10) {
-                showString(shtctl, sht_back, 0, 0, COL8_FFFFFF, "5[sec]");
+                showString(shtctl, sht_back, 0, 0, COL8_FFFFFF, " 5[sec]");
             } else if (i == 2) {
                 showString(shtctl, sht_back, 0, 16, COL8_FFFFFF, "3[sec]");
             } else {
                 if (i != 0) {
                     timer_init(timer3, &timerinfo, 0);
-                    boxfill8(buf_back, xsize, COL8_FFFFFF, 8, 96, 15, 111);
+                    cursor_c = COL8_000000;
                 } else {
                     timer_init(timer3, &timerinfo, 1);
-                    boxfill8(buf_back, xsize, COL8_008484, 8, 96, 15, 111);
+                    cursor_c = COL8_FFFFFF;
                 }
 
                 timer_settime(timer3, 50);
-                sheet_refresh(shtctl, sht_back, 8, 96, 16, 112);
+                boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c, cursor_x,
+                         28, cursor_x + 7, 43);
+                sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
+                              44);
             }
         }
     }
@@ -307,6 +330,9 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
         computeMousePosition(shtctl, sht_back, &mdec);
 
         sheet_slide(shtctl, sht_mouse, mx, my);
+         if ((mdec.btn & 0x01) != 0) {
+            sheet_slide(shtctl, shtMsgBox, mx - 80, my - 8); 
+         }
     }
 }
 
@@ -632,6 +658,7 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     sheet_setbuf(sht_win, buf_win, 160, 68, -1);
 
     make_window8(shtctl, sht_win, title);
+    make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
 
     sheet_slide(shtctl, sht_win, 80, 72);
     sheet_updown(shtctl, sht_win, 2);
@@ -686,4 +713,25 @@ void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title) {
     }
 
     return;
+}
+
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
+    int x1 = x0 + sx, y1 = y0 + sy;
+    boxfill8(sht->buf, sht->bxsize, COL8_848484, x0 - 2, y0 - 3, x1 + 1,
+             y0 - 3);
+    boxfill8(sht->buf, sht->bxsize, COL8_848484, x0 - 3, y0 - 3, x0 - 3,
+             y1 + 1);
+    boxfill8(sht->buf, sht->bxsize, COL8_FFFFFF, x0 - 3, y1 + 2, x1 + 1,
+             y1 + 2);
+    boxfill8(sht->buf, sht->bxsize, COL8_FFFFFF, x1 + 2, y0 - 3, x1 + 2,
+             y1 + 2);
+    boxfill8(sht->buf, sht->bxsize, COL8_000000, x0 - 1, y0 - 2, x1 + 0,
+             y0 - 2);
+    boxfill8(sht->buf, sht->bxsize, COL8_000000, x0 - 2, y0 - 2, x0 - 2,
+             y1 + 0);
+    boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x0 - 2, y1 + 1, x1 + 0,
+             y1 + 1);
+    boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x1 + 1, y0 - 2, x1 + 1,
+             y1 + 1);
+    boxfill8(sht->buf, sht->bxsize, c, x0 - 1, y0 - 1, x1 + 0, y1 + 0);
 }

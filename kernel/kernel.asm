@@ -32,10 +32,10 @@ LABEL_IDT:
 %endrep
 
 .020h:
-    Gate SelectorCode32, timerHandler,0, DA_386IGate
+    Gate  SelectorCode32, timerHandler,     0,  DA_386IGate
 
 .021h:
-    Gate SelectorCode32, KeyBoardHandler, 0,  DA_386IGate
+    Gate  SelectorCode32, KeyBoardHandler,  0,  DA_386IGate
 
 %rep  10
     Gate  SelectorCode32, SpuriousHandler,  0,  DA_386IGate
