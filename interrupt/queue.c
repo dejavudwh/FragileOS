@@ -1,17 +1,24 @@
 #include "queue.h"
+#include "../process/multi_task.h"
 
-void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf) {
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf,
+                struct TASK *task) {
     fifo->size = size;
     fifo->buf = buf;
     fifo->free = size;
     fifo->flags = 0;
     fifo->p = 0;
     fifo->q = 0;
+    fifo->task = task;
     return;
 }
 
 #define FLAGS_OVERRUN 0x0001
 int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
+    if (fifo == 0) {
+        return -1;
+    }
+
     if (fifo->free == 0) {
         fifo->flags |= FLAGS_OVERRUN;
         return -1;
@@ -24,6 +31,13 @@ int fifo8_put(struct FIFO8 *fifo, unsigned char data) {
     }
 
     fifo->free--;
+
+    if (fifo->task != 0) {
+        if (fifo->task->flags != 2) {
+            task_run(fifo->task);
+        }
+    }
+
     return 0;
 }
 

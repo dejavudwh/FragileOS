@@ -13,6 +13,7 @@ DA_DRW		  EQU	  92h	            ; 存在的可读写数据段属性值
 DA_DRWA		  EQU	  93h	            ; 存在的已访问可读写数据段类型值
 DA_386IGate EQU   8Eh             ; 中断调用门
 DA_LIMIT_4K	EQU	  8000h	;
+DA_386TSS	  EQU	  89h
 
 ;Gate selecotor, offset, DCount, Attr
 %macro Gate 4

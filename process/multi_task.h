@@ -70,3 +70,5 @@ void task_switch();
     获得任务的定时器
  */
 struct TIMER *get_task_timer();
+
+void task_sleep(struct TASK *task);

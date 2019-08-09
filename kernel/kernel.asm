@@ -98,6 +98,15 @@ LABEL_MEM_CHK_OK:
      xor   eax, eax
      mov   ax,  cs
      shl   eax, 4
+     add   eax, LABEL_STACK
+     mov   word [LABEL_DESC_STACK + 2], ax
+     shr   eax, 16
+     mov   byte [LABEL_DESC_STACK + 4], al
+     mov   byte [LABEL_DESC_STACK + 7], ah
+
+     xor   eax, eax
+     mov   ax,  cs
+     shl   eax, 4
      add   eax, LABEL_SYSTEM_FONT                 ; 初始化LABEL_DESC_CODE32段描述符
      mov   word [LABEL_DESC_FONT + 2], ax
      shr   eax, 16
@@ -195,7 +204,7 @@ LABEL_SEG_CODE32:
      mov  ax,  SelectorVideo
      mov  gs,  ax
         
-     sti
+     cli
 
      %include "ckernel.asm"
      jmp  $

@@ -160,16 +160,18 @@ void taskswitch7();
  */
 void launch(void) {
     initBootInfo(&bootInfo);
+
     char *vram = bootInfo.vgaRam;
     xsize = bootInfo.screenX, ysize = bootInfo.screenY;
 
     struct TIMER *timer, *timer2, *timer3;
 
     init_pit();
-    fifo8_init(&timerinfo, 8, timerbuf);
+
+    fifo8_init(&timerinfo, 8, timerbuf, 0);
     timer = timer_alloc();
     timer_init(timer, &timerinfo, 10);
-    timer_settime(timer, 500);
+    timer_settime(timer, 100);
 
     timer2 = timer_alloc();
     timer_init(timer2, &timerinfo, 2);
@@ -179,8 +181,8 @@ void launch(void) {
     timer_init(timer3, &timerinfo, 1);
     timer_settime(timer3, 50);
 
-    fifo8_init(&keyinfo, 32, keybuf);
-    fifo8_init(&mouseinfo, 128, mousebuf);
+    fifo8_init(&keyinfo, 32, keybuf, 0);
+    fifo8_init(&mouseinfo, 128, mousebuf, 0);
 
     init_palette();
     init_keyboard();
@@ -209,7 +211,7 @@ void launch(void) {
     sheet_slide(shtctl, sht_mouse, mx, my);
 
     int cursor_x = 8, cursor_c = COL8_FFFFFF;
-    shtMsgBox = message_box(shtctl, "message");
+    shtMsgBox = message_box(shtctl, "counter");
 
     sheet_updown(shtctl, sht_back, 0);
 
@@ -218,10 +220,8 @@ void launch(void) {
     io_sti();
     enable_mouse(&mdec);
 
-    /* 以上主要是一些是初始化，下面开始主进程 */
-
-    /* 进程管理 */
-    int code32_addr = get_addr_code32();
+    // switch task
+    int addr_code32 = get_addr_code32();
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
 
@@ -229,15 +229,14 @@ void launch(void) {
     static struct TASK *task_a;
     static struct TASK *task_b;
 
-    struct TSS32 *pTss = (struct TSS32 *)memman_alloc_4k(memman, 103);
-
-    //先用launch的初始化后，以后只要调用alloc就可以了
     task_a = task_init(memman);
+    keyinfo.task = task_a;
+    
     task_b = task_alloc();
     task_b->tss.ldtr = 0;
     task_b->tss.iomap = 0x40000000;
 
-    task_b->tss.eip = (int)(task_b_func - code32_addr);
+    task_b->tss.eip = (int)(task_b_func - addr_code32);
     task_b->tss.es = 0;
     task_b->tss.cs = 1 * 8;  // 6 * 8;
     task_b->tss.ss = 4 * 8;
@@ -249,8 +248,11 @@ void launch(void) {
 
     int data = 0;
     int count = 0;
-    // char count2 = 0;
+    int i = 0;
+
     int pos = 0;
+    int stop_task_A = 0;
+
     for (;;) {
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
@@ -270,9 +272,6 @@ void launch(void) {
                 }
 
             } else if (keytable[data] != 0 && cursor_x < 144) {
-                // showString(shtctl, sht_back, 50 + count2, 28, COL8_000000,
-                // "t"); count2 += 25;
-
                 boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
                          cursor_x, 28, cursor_x + 7, 43);
                 sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
@@ -281,6 +280,8 @@ void launch(void) {
                 char buf[2] = {keytable[data], 0};
                 showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000, buf);
                 cursor_x += 8;
+
+                stop_task_A = 1;
 
                 boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c, cursor_x,
                          28, cursor_x + 7, 43);
@@ -297,8 +298,13 @@ void launch(void) {
                 showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A");
                 timer_settime(timer, 100);
                 pos += 8;
+                if (pos > 40 && stop_task_A == 0) {
+                    io_cli();
+                    task_sleep(task_a);
+                    io_sti();
+                }
             } else if (i == 2) {
-                showString(shtctl, sht_back, 0, 16, COL8_FFFFFF, "3[sec]");
+                showString(shtctl, sht_back, 0, 32, COL8_FFFFFF, "3[sec]");
             } else {
                 if (i != 0) {
                     timer_init(timer3, &timerinfo, 0);
@@ -318,7 +324,7 @@ void launch(void) {
     }
 }
 
-void task_b_func() {
+void task_b_func(void) {
     showString(shtctl, sht_back, 0, 160, COL8_FFFFFF, "enter task b");
 
     struct FIFO8 timerinfo_b;
@@ -327,7 +333,7 @@ void task_b_func() {
 
     int i = 0;
 
-    fifo8_init(&timerinfo_b, 8, timerbuf_b);
+    fifo8_init(&timerinfo_b, 8, timerbuf_b, 0);
     timer_b = timer_alloc();
     timer_init(timer_b, &timerinfo_b, 123);
 
@@ -342,7 +348,8 @@ void task_b_func() {
             i = fifo8_get(&timerinfo_b);
             io_sti();
             if (i == 123) {
-                showString(shtctl, sht_back, pos, 176, COL8_FFFFFF, "B");
+                showString(shtctl, sht_back, pos, 192, COL8_FFFFFF, "B");
+                // farjmp(0, 8*8);
                 timer_settime(timer_b, 100);
                 pos += 8;
             }

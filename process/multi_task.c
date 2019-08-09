@@ -2,53 +2,49 @@
 #include "multi_task.h"
 #include "../interrupt/timer.h"
 
-static struct TIMER *task_timer = 0;
-static struct TASKCTL *taskctl = 0;
+void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar) {
+	if (limit > 0xfffff) {
+		ar |= 0x8000; /* G_bit = 1 */
+		limit /= 0x1000;
+	}
+	sd->limit_low    = limit & 0xffff;
+	sd->base_low     = base & 0xffff;
+	sd->base_mid     = (base >> 16) & 0xff;
+	sd->access_right = ar & 0xff;
+	sd->limit_high   = ((limit >> 16) & 0x0f) | ((ar >> 8) & 0xf0);
+	sd->base_high    = (base >> 24) & 0xff;
+	return;
+} 
 
-void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
-                  int attr) {
-    if (limit > 0xfffff) {
-        attr |= 0x8000;
-        limit /= 0x1000;
-    }
-    sd->limit_low = limit & 0xffff;
-    sd->base_low = base & 0xffff;
-    sd->base_mid = (base >> 16) & 0xff;
-    sd->access_right = attr & 0xff;
-    sd->limit_high = ((limit >> 16) & 0x0f) | ((attr >> 8) & 0xf0);
-    sd->base_high = (base >> 24) & 0xff;
+static struct TIMER *task_timer;
+static struct TASKCTL *taskctl;
 
-    return;
-}
-
-struct TASK *task_init(struct MEMMAN *memman) {
+struct TASK  *task_init(struct MEMMAN *memman) {
+    int  i;
     struct TASK *task;
-    struct SEGMENT_DESCRIPTOR *gdt =
-        (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
+    struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
     taskctl = (struct TASKCTL *)memman_alloc_4k(memman, SIZE_OF_TASKCTL);
-    for (int i = 0; i < MAX_TASKS; i++) {
+    for (i = 0; i < MAX_TASKS; i++) {
         taskctl->tasks0[i].flags = 0;
         taskctl->tasks0[i].sel = (TASK_GDT0 + i) * 8;
         set_segmdesc(gdt + TASK_GDT0 + i, 103, (int)&taskctl->tasks0[i].tss,
-                     AR_TSS32);
+        AR_TSS32);
     }
-
+ 
     task = task_alloc();
-    task->flags = 2;
+    task->flags = 2;  //active
     taskctl->running = 1;
     taskctl->now = 0;
     taskctl->tasks[0] = task;
     load_tr(task->sel);
     task_timer = timer_alloc();
     timer_settime(task_timer, 100);
-
     return task;
 }
 
 struct TASK *task_alloc(void) {
     int i;
     struct TASK *task;
-    //从进程队列中取出一个没有使用的来分配
     for (i = 0; i < MAX_TASKS; i++) {
         if (taskctl->tasks0[i].flags == 0) {
             task = &taskctl->tasks0[i];
@@ -59,7 +55,7 @@ struct TASK *task_alloc(void) {
             task->tss.edx = 0;
             task->tss.ebx = 0;
             task->tss.ebp = 0;
-            task->tss.esp = 512 * (i + 1);
+            task->tss.esp = 512*(i+1);
             task->tss.esi = 0;
             task->tss.edi = 0;
             task->tss.es = 0;
@@ -80,9 +76,9 @@ void task_run(struct TASK *task) {
     taskctl->tasks[taskctl->running] = task;
     taskctl->running++;
     return;
-}
+} 
 
-void task_switch() {
+void task_switch(void) {
     timer_settime(task_timer, 100);
     if (taskctl->running >= 2) {
         taskctl->now++;
@@ -96,6 +92,39 @@ void task_switch() {
     return;
 }
 
-struct TIMER *get_task_timer() {
-    return task_timer;
+void task_sleep(struct TASK *task) {
+   int  i;
+   char ts = 0;
+   if (task->flags == 2) {
+        if (task == taskctl->tasks[taskctl->now]) {
+            ts = 1;
+        }
+
+    for (i = 0; i < taskctl->running; i++) {
+        if (taskctl->tasks[i] == task) {
+            break;
+        }
+    }
+
+    taskctl->running--;
+    if (i < taskctl->now) {
+        taskctl->now--;
+    }
+
+    for(; i < taskctl->running; i++) {
+        taskctl->tasks[i] = taskctl->tasks[i+1];
+    }
+
+    task->flags = 1;
+    if (ts != 0) {
+        if (taskctl->now >= taskctl->running) {
+            taskctl->now = 0;
+        }
+
+       farjmp(0, taskctl->tasks[taskctl->now]->sel);
+    }
+
+   }
+
+   return;
 }

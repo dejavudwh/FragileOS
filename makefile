@@ -7,7 +7,7 @@ boot.bat: boot.asm
 kernel.bat: kernel.asm ckernel.asm
 	cd kernel && nasm -o kernel.bat kernel.asm	
 ckernel.asm: ckernel.o
-	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly	
+	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly
 ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o
 	cd kernel && ld -m i386pe -r ../launch/launch.o ../launch/win_sheet.o ../memory/mem_util.o ../interrupt/queue.o ../interrupt/timer.o ../process/multi_task.o  -o ckernel.o
 launch.o: launch.c win_sheet.c win_sheet.h mem_util.c mem_util.h
