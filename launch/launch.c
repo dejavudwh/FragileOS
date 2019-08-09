@@ -42,9 +42,18 @@ void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
               int x0, int y0);
 
-/*
-    vgaram显存地址，screenXY屏幕宽度
-*/
+void load_tr(int sub);
+void taskswitch8();
+void taskswitch7();
+
+static char keytable[0x54] = {
+    0, 0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^',
+    0, 0,   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '@', '[',
+    0, 0,   'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', ':', 0,
+    0, ']', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 0,   '*',
+    0, ' ', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0, '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.'};
+
 struct BOOTINFO {
     char *vgaRam;
     short screenX, screenY;
@@ -52,9 +61,6 @@ struct BOOTINFO {
 
 void initBootInfo(struct BOOTINFO *pBootInfo);
 
-/*
-    fonts.inc
- */
 extern char systemFont[16];
 
 void showFont8(char *vram, int xsize, int x, int y, char c, char *font);
@@ -72,27 +78,12 @@ static struct BOOTINFO bootInfo;
 
 static char keyval[5] = {'0', 'X', 0, 0, 0};
 
-static char keytable[0x54] = {
-    0, 0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^',
-    0, 0,   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '@', '[',
-    0, 0,   'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', ':', 0,
-    0, ']', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 0,   '*',
-    0, ' ', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-    0, '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.'};
-
 static struct FIFO8 keyinfo;
 static struct FIFO8 mouseinfo;
 
 static char keybuf[32];
 static char mousebuf[128];
 
-/*
-    模拟鼠标
-    buf 接收的三个数据
-    phase 已经接收了几个数据
-    x,y 鼠标坐标偏移
-    btn 鼠标按下的键
-*/
 struct MOUSE_DEC {
     unsigned char buf[3], phase;
     int x, y, btn;
@@ -114,9 +105,6 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
                      struct SHEET *sht_mouse);
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 
-/*
-    地址范围描述符
- */
 struct AddrRangeDesc {
     unsigned int baseAddrLow;
     unsigned int baseAddrHigh;
@@ -135,29 +123,22 @@ void init_screen8(char *vram, int x, int y);
 
 struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
 void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title);
-void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
-
-static struct SHEET *shtMsgBox;
 
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
 static unsigned char *buf_back, buf_mouse[256];
-
-//不初始化反汇编的时候会出问题
-struct SHTCTL *shtctl = 0;
-struct SHEET *sht_back = 0, *sht_mouse = 0;
-
 #define COLOR_INVISIBLE 99
 
-/* TASK */
-void task_b_func();
-void load_tr(int sub);
-void taskswitch8();
-void taskswitch7();
+void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+static struct SHEET *shtMsgBox;
+static struct SHTCTL *shtctl;
+static struct SHEET *sht_back, *sht_mouse;
 
-/*
-    内核加载时的一些初始化启动操作
- */
+void task_b_main(void);
+
+static int task_b = 0;
+static struct TIMER g_timer_b;
+
 void launch(void) {
     initBootInfo(&bootInfo);
 
@@ -231,12 +212,13 @@ void launch(void) {
 
     task_a = task_init(memman);
     keyinfo.task = task_a;
-    
+
     task_b = task_alloc();
     task_b->tss.ldtr = 0;
     task_b->tss.iomap = 0x40000000;
 
-    task_b->tss.eip = (int)(task_b_func - addr_code32);
+    task_b->tss.eip = (int)(task_b_main - addr_code32);
+
     task_b->tss.es = 0;
     task_b->tss.cs = 1 * 8;  // 6 * 8;
     task_b->tss.ss = 4 * 8;
@@ -324,7 +306,7 @@ void launch(void) {
     }
 }
 
-void task_b_func(void) {
+void task_b_main(void) {
     showString(shtctl, sht_back, 0, 160, COL8_FFFFFF, "enter task b");
 
     struct FIFO8 timerinfo_b;
@@ -419,13 +401,14 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
 
 void initBootInfo(struct BOOTINFO *pBootInfo) {
     pBootInfo->vgaRam = (char *)0xe0000000;
-    pBootInfo->screenX = 800;
-    pBootInfo->screenY = 600;
+    pBootInfo->screenX = 640;
+    pBootInfo->screenY = 480;
 }
 
 void showString(struct SHTCTL *shtctl, struct SHEET *sht, int x, int y,
                 char color, unsigned char *s) {
     int begin = x;
+
     for (; *s != 0x00; s++) {
         showFont8(sht->buf, sht->bxsize, x, y, color, systemFont + *s * 16);
         x += 8;
@@ -603,7 +586,6 @@ char *intToHexStr(unsigned int d) {
 
 void wait_KBC_sendready() {
     for (;;) {
-        //判断鼠标电路能否接收信息   返回的第二个比特位为0即可
         if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0) {
             break;
         }
@@ -612,10 +594,8 @@ void wait_KBC_sendready() {
 
 void init_keyboard(void) {
     wait_KBC_sendready();
-    //让键盘进入信息接收状态
     io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
     wait_KBC_sendready();
-    //启动鼠标电路
     io_out8(PORT_KEYDAT, KBC_MODE);
     return;
 }
@@ -627,7 +607,6 @@ void enable_mouse(struct MOUSE_DEC *mdec) {
     wait_KBC_sendready();
     io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
     wait_KBC_sendready();
-    //激活鼠标，调用鼠标中断
     io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
 
     mdec->phase = 0;
@@ -636,18 +615,13 @@ void enable_mouse(struct MOUSE_DEC *mdec) {
 
 void intHandlerForMouse(char *esp) {
     unsigned char data;
-    //让从8259A继续接收中断 OCW2 - 中断优先级
     io_out8(PIC1_OCW2, 0x20);
-    //让主8259A继续接收中断
     io_out8(PIC_OCW2, 0x20);
 
     data = io_in8(PORT_KEYDAT);
     fifo8_put(&mouseinfo, data);
 }
 
-/*
-    对鼠标发送回来的三次一字节信息进行解码
- */
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat) {
     if (mdec->phase == 0) {
         if (dat == 0xfa) {
@@ -718,16 +692,17 @@ void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
     showString(shtctl, sht, x, y, color, "lengthLow: ");
     char *pLengthLow = intToHexStr(desc->lengthLow);
     showString(shtctl, sht, gap, y, color, pLengthLow);
+    /*
+        y+= 16;
+        showString(shtctl, sht, x, y, color, "lengthHigh: ");
+        char* pLengthHigh = intToHexStr(desc->lengthHigh);
+        showString(shtctl, sht, gap, y, color, pLengthHigh);
 
-    y += 16;
-    showString(shtctl, sht, x, y, color, "lengthHigh: ");
-    char *pLengthHigh = intToHexStr(desc->lengthHigh);
-    showString(shtctl, sht, gap, y, color, pLengthHigh);
-
-    y += 16;
-    showString(shtctl, sht, x, y, color, "type: ");
-    char *pType = intToHexStr(desc->type);
-    showString(shtctl, sht, gap, y, color, pType);
+        y+= 16;
+        showString(shtctl, sht, x, y, color, "type: ");
+        char* pType = intToHexStr(desc->type);
+        showString(shtctl, sht, gap, y, color, pType);
+    */
 }
 
 struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
@@ -741,7 +716,7 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     make_window8(shtctl, sht_win, title);
     make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
 
-    sheet_slide(shtctl, sht_win, 80, 72);
+    sheet_slide(shtctl, sht_win, 160, 72);
     sheet_updown(shtctl, sht_win, 2);
 
     return sht_win;

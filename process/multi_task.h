@@ -1,5 +1,3 @@
-#define AR_TSS32 0x0089
-
 /*
     用来描述TSS32：切换进程用来保存环境的数据结构
  */
@@ -10,17 +8,19 @@ struct TSS32 {
     int ldtr, iomap;
 };
 
+/*
+    设置描述符
+ */
 struct SEGMENT_DESCRIPTOR {
     short limit_low, base_low;
     char base_mid, access_right;
     char limit_high, base_high;
 };
 
-#define MAX_TASKS 2
-#define TASK_GDT0 7
-#define SIZE_OF_TASK 112
+void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
+                  int ar);
 
-#define SIZE_OF_TASKCTL (4 + 4 + 4 * MAX_TASKS + SIZE_OF_TASK * MAX_TASKS)
+#define AR_TSS32 0x0089
 
 /*
     描述进程
@@ -33,6 +33,10 @@ struct TASK {
     struct TSS32 tss;
 };
 
+#define MAX_TASKS 2
+#define TASK_GDT0 7
+#define SIZE_OF_TASK 112
+
 struct TASKCTL {
     int running;
     int now;
@@ -41,20 +45,16 @@ struct TASKCTL {
 };
 
 /*
-    设置描述符
- */
-void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
-                  int ar);
-
-/*
     对所有进程初始化，并拿出当前的主线程也就是launch
  */
 struct TASK *task_init(struct MEMMAN *memman);
 
+#define SIZE_OF_TASKCTL (4 + 4 + 4 * MAX_TASKS + SIZE_OF_TASK * MAX_TASKS)
+
 /*
     分配一个线程
  */
-struct TASK *task_alloc();
+struct TASK *task_alloc(void);
 
 /*
     启动线程
@@ -67,8 +67,6 @@ void task_run(struct TASK *task);
 void task_switch();
 
 /*
-    获得任务的定时器
- */
-struct TIMER *get_task_timer();
-
+    挂起线程
+*/
 void task_sleep(struct TASK *task);

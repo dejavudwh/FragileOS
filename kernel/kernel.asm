@@ -82,7 +82,7 @@ LABEL_MEM_CHK_FAIL:
     mov    dword [dwMCRNumber], 0
 
 LABEL_MEM_CHK_OK:
-     mov   bx, 0x4103                             ; 设置显卡 1280*1024
+     mov   bx, 0x4101                             ; 设置显卡 1280*1024
      mov   ax, 0x4f02
      int   0x10
 
