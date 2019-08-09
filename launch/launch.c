@@ -1,3 +1,4 @@
+
 #include "../interrupt/queue.h"
 #include "../interrupt/timer.h"
 #include "../memory/mem_util.h"
@@ -23,9 +24,6 @@
 
 #define PORT_KEYDAT 0x0060
 #define PIC_OCW2 0x20
-/*
-    8259A端口
- */
 #define PIC1_OCW2 0xA0
 
 struct MEMMAN *memman = (struct MEMMAN *)0x100000;
@@ -42,9 +40,7 @@ void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
               int x0, int y0);
 
-void load_tr(int sub);
 void taskswitch8();
-void taskswitch7();
 
 static char keytable[0x54] = {
     0, 0,   '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '^',
@@ -134,12 +130,12 @@ static struct SHEET *shtMsgBox;
 static struct SHTCTL *shtctl;
 static struct SHEET *sht_back, *sht_mouse;
 
-void task_b_main(void);
+void task_b_main(struct SHEET *sht_win_b);
 
 static int task_b = 0;
 static struct TIMER g_timer_b;
 
-void launch(void) {
+void CMain(void) {
     initBootInfo(&bootInfo);
 
     char *vram = bootInfo.vgaRam;
@@ -206,32 +202,51 @@ void launch(void) {
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
 
-    struct TSS32 tss_a;
+    static struct TSS32 tss_b, tss_a;
     static struct TASK *task_a;
-    static struct TASK *task_b;
+
+    unsigned char *buf_win_b;
+    struct SHEET *sht_win_b[3];
+    static struct TASK *task_b[3];
 
     task_a = task_init(memman);
     keyinfo.task = task_a;
+    char taskTitle[6] = {'t', 'a', 's', 'k', 0, 0};
+    int i = 0;
+    for (i = 0; i < 2; i++) {
+        sht_win_b[i] = sheet_alloc(shtctl);
+        buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
+        char c = 'b' + i;
+        taskTitle[4] = c;
+        sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
+        make_window8(shtctl, sht_win_b[i], taskTitle);
 
-    task_b = task_alloc();
-    task_b->tss.ldtr = 0;
-    task_b->tss.iomap = 0x40000000;
+        task_b[i] = task_alloc();
+        task_b[i]->tss.ldtr = 0;
+        task_b[i]->tss.iomap = 0x40000000;
+        task_b[i]->tss.eip = (int)(task_b_main - addr_code32);
 
-    task_b->tss.eip = (int)(task_b_main - addr_code32);
+        task_b[i]->tss.es = 0;
+        task_b[i]->tss.cs = 1 * 8;  // 6 * 8;
+        task_b[i]->tss.ss = 4 * 8;
+        task_b[i]->tss.ds = 3 * 8;
+        task_b[i]->tss.fs = 0;
+        task_b[i]->tss.gs = 2 * 8;
+        task_b[i]->tss.esp -= 8;
+        *((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
 
-    task_b->tss.es = 0;
-    task_b->tss.cs = 1 * 8;  // 6 * 8;
-    task_b->tss.ss = 4 * 8;
-    task_b->tss.ds = 3 * 8;
-    task_b->tss.fs = 0;
-    task_b->tss.gs = 2 * 8;
+        task_run(task_b[i]);
+    }
+    sheet_slide(shtctl, sht_win_b[0], 16, 28);
+    sheet_updown(shtctl, sht_win_b[0], 1);
 
-    task_run(task_b);
+    sheet_slide(shtctl, sht_win_b[1], 160, 28);
+    sheet_updown(shtctl, sht_win_b[1], 1);
+    // switch task
 
     int data = 0;
     int count = 0;
-    int i = 0;
-
+    i = 0;
     int pos = 0;
     int stop_task_A = 0;
 
@@ -278,6 +293,8 @@ void launch(void) {
             int i = fifo8_get(&timerinfo);
             if (i == 10) {
                 showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A");
+                // switch task
+                //  farjmp(0, 9*8);
                 timer_settime(timer, 100);
                 pos += 8;
                 if (pos > 40 && stop_task_A == 0) {
@@ -306,7 +323,7 @@ void launch(void) {
     }
 }
 
-void task_b_main(void) {
+void task_b_main(struct SHEET *sht_win_b) {
     showString(shtctl, sht_back, 0, 160, COL8_FFFFFF, "enter task b");
 
     struct FIFO8 timerinfo_b;
@@ -321,8 +338,11 @@ void task_b_main(void) {
 
     timer_settime(timer_b, 100);
 
+    int count = 0;
+
     int pos = 0;
     for (;;) {
+        count++;
         io_cli();
         if (fifo8_status(&timerinfo_b) == 0) {
             io_sti();
@@ -331,33 +351,39 @@ void task_b_main(void) {
             io_sti();
             if (i == 123) {
                 showString(shtctl, sht_back, pos, 192, COL8_FFFFFF, "B");
+                // farjmp(0, 8*8);
                 timer_settime(timer_b, 100);
                 pos += 8;
+                boxfill8(sht_win_b->buf, 144, COL8_C6C6C6, 24, 28, 104, 44);
+                sheet_refresh(shtctl, sht_win_b, 24, 28, 104, 44);
+
+                char *p = intToHexStr(count);
+                showString(shtctl, sht_win_b, 24, 28, COL8_FFFFFF, p);
             }
         }
     }
 }
 
 void init_screen8(char *vram, int xsize, int ysize) {
-    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 42);
-    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 41, xsize - 1, ysize - 41);
-    boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 40, xsize - 1, ysize - 40);
-    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 39, xsize - 1, ysize - 1);
+    boxfill8(vram, xsize, COL8_008484, 0, 0, xsize - 1, ysize - 29);
+    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 28, xsize - 1, ysize - 28);
+    boxfill8(vram, xsize, COL8_FFFFFF, 0, ysize - 27, xsize - 1, ysize - 27);
+    boxfill8(vram, xsize, COL8_C6C6C6, 0, ysize - 26, xsize - 1, ysize - 1);
 
-    boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 37, 72, ysize - 37);
-    boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 37, 2, ysize - 4);
-    boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 72, ysize - 4);
-    boxfill8(vram, xsize, COL8_848484, 72, ysize - 36, 72, ysize - 5);
-    boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 72, ysize - 3);
-    boxfill8(vram, xsize, COL8_000000, 73, ysize - 37, 73, ysize - 3);
+    boxfill8(vram, xsize, COL8_FFFFFF, 3, ysize - 24, 59, ysize - 24);
+    boxfill8(vram, xsize, COL8_FFFFFF, 2, ysize - 24, 2, ysize - 4);
+    boxfill8(vram, xsize, COL8_848484, 3, ysize - 4, 59, ysize - 4);
+    boxfill8(vram, xsize, COL8_848484, 59, ysize - 23, 59, ysize - 5);
+    boxfill8(vram, xsize, COL8_000000, 2, ysize - 3, 59, ysize - 3);
+    boxfill8(vram, xsize, COL8_000000, 60, ysize - 24, 60, ysize - 3);
 
-    boxfill8(vram, xsize, COL8_848484, xsize - 61, ysize - 37, xsize - 4,
-             ysize - 37);
-    boxfill8(vram, xsize, COL8_848484, xsize - 61, ysize - 36, xsize - 61,
+    boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 24, xsize - 4,
+             ysize - 24);
+    boxfill8(vram, xsize, COL8_848484, xsize - 47, ysize - 23, xsize - 47,
              ysize - 4);
-    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 61, ysize - 3, xsize - 4,
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47, ysize - 3, xsize - 4,
              ysize - 3);
-    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 37, xsize - 3,
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 3, ysize - 24, xsize - 3,
              ysize - 3);
 }
 
@@ -715,7 +741,7 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     make_window8(shtctl, sht_win, title);
     make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
 
-    sheet_slide(shtctl, sht_win, 160, 72);
+    sheet_slide(shtctl, sht_win, 260, 172);
     sheet_updown(shtctl, sht_win, 2);
 
     return sht_win;

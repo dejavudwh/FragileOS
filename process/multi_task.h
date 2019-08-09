@@ -33,7 +33,7 @@ struct TASK {
     struct TSS32 tss;
 };
 
-#define MAX_TASKS 2
+#define MAX_TASKS 5
 #define TASK_GDT0 7
 #define SIZE_OF_TASK 112
 

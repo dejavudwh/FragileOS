@@ -70,14 +70,15 @@ int sheet_refresh(struct SHTCTL *ctl, struct SHEET *sht, int bx0, int by0,
  */
 void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0);
 
-
 /*
     图层绘制
     h0 当前图层高度
  */
-void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0, int h1);
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1,
+                      int h0, int h1);
 
 /*
     更新屏幕像素点对图层标号的映射
  */
-void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1, int h0);
+void sheet_refreshmap(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1,
+                      int h0);

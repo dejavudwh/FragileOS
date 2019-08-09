@@ -15,7 +15,7 @@ void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
     sd->limit_high = ((limit >> 16) & 0x0f) | ((ar >> 8) & 0xf0);
     sd->base_high = (base >> 24) & 0xff;
     return;
-} 
+}
 
 static struct TIMER *task_timer;
 static struct TASKCTL *taskctl;
@@ -26,7 +26,7 @@ struct TASK *task_init(struct MEMMAN *memman) {
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
     taskctl = (struct TASKCTL *)memman_alloc_4k(memman, SIZE_OF_TASKCTL);
-    for (i = 0; i < MAX_TASKS; i++) {
+    for (i = 0; i < 5; i++) {
         taskctl->tasks0[i].flags = 0;
         taskctl->tasks0[i].sel = (TASK_GDT0 + i) * 8;
         set_segmdesc(gdt + TASK_GDT0 + i, 103, (int)&taskctl->tasks0[i].tss,
@@ -47,7 +47,7 @@ struct TASK *task_init(struct MEMMAN *memman) {
 struct TASK *task_alloc(void) {
     int i;
     struct TASK *task;
-    for (i = 0; i < MAX_TASKS; i++) {
+    for (i = 0; i < 5; i++) {
         if (taskctl->tasks0[i].flags == 0) {
             task = &taskctl->tasks0[i];
             task->flags = 1;
