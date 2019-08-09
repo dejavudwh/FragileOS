@@ -34,17 +34,18 @@ struct TASK *task_init(struct MEMMAN *memman) {
     }
 
     task = task_alloc();
-    task->flags = 2;  // active
+    task->flags = 2;
+    task->priority = 100;
     taskctl->running = 1;
     taskctl->now = 0;
     taskctl->tasks[0] = task;
     load_tr(task->sel);
     task_timer = timer_alloc();
-    timer_settime(task_timer, 100);
+    timer_settime(task_timer, task->priority);
     return task;
 }
 
-struct TASK *task_alloc(void) {
+struct TASK *task_alloc() {
     int i;
     struct TASK *task;
     for (i = 0; i < 5; i++) {
@@ -73,7 +74,11 @@ struct TASK *task_alloc(void) {
     return 0;
 }
 
-void task_run(struct TASK *task) {
+void task_run(struct TASK *task, int priority) {
+    if (priority > 0) {
+        task->priority = priority;
+    }
+
     task->flags = 2;
     taskctl->tasks[taskctl->running] = task;
     taskctl->running++;
@@ -81,13 +86,16 @@ void task_run(struct TASK *task) {
 }
 
 void task_switch(void) {
-    timer_settime(task_timer, 100);
+    struct TASK *task;
+
     if (taskctl->running >= 2) {
         taskctl->now++;
         if (taskctl->now == taskctl->running) {
             taskctl->now = 0;
         }
 
+        task = taskctl->tasks[taskctl->now];
+        timer_settime(task_timer, task->priority);  
         farjmp(0, taskctl->tasks[taskctl->now]->sel);
     }
 

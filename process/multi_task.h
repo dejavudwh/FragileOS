@@ -26,10 +26,12 @@ void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
     描述进程
     sel 这个进程的tss在全局描述符表下的标号
     flags 是否已经启用 2 = active 1 = occupied 0 = empty
+    priority 进程优先级
     tss 即tss
  */
 struct TASK {
     int sel, flags;
+    int priority;
     struct TSS32 tss;
 };
 
@@ -54,12 +56,12 @@ struct TASK *task_init(struct MEMMAN *memman);
 /*
     分配一个线程
  */
-struct TASK *task_alloc(void);
+struct TASK *task_alloc();
 
 /*
     启动线程
  */
-void task_run(struct TASK *task);
+void task_run(struct TASK *task, int priority);
 
 /*
     切换线程
