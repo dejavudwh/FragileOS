@@ -331,7 +331,6 @@ void task_b_main(void) {
             io_sti();
             if (i == 123) {
                 showString(shtctl, sht_back, pos, 192, COL8_FFFFFF, "B");
-                // farjmp(0, 8*8);
                 timer_settime(timer_b, 100);
                 pos += 8;
             }

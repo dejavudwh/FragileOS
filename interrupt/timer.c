@@ -1,15 +1,15 @@
-#include "../process/multi_task.h"
 #include "../interrupt/timer.h"
+#include "../process/multi_task.h"
 
-#define  PIC0_OCW2     0x20
-#define  PIC1_OCW2    0xA0
-#define  TIMER_FLAGS_ALLOC  1
-#define  TIMER_FLAGS_USING  2
+#define PIC0_OCW2 0x20
+#define PIC1_OCW2 0xA0
+#define TIMER_FLAGS_ALLOC 1
+#define TIMER_FLAGS_USING 2
 
 static struct TIMERCTL timerctl;
 extern struct TIMER *task_timer;
 
-void  init_pit(void) {
+void init_pit(void) {
     io_out8(PIT_CTRL, 0x34);
     io_out8(PIT_CNT0, 0x9c);
     io_out8(PIT_CNT0, 0x2e);
@@ -17,12 +17,12 @@ void  init_pit(void) {
     timerctl.count = 0;
     int i;
     for (i = 0; i < MAX_TIMER; i++) {
-        timerctl.timer[i].flags = 0; //not used
+        timerctl.timer[i].flags = 0;  // not used
         timerctl.timer[i].fifo = 0;
     }
 }
 
-struct TIMER* timer_alloc(void) {
+struct TIMER *timer_alloc(void) {
     int i;
     for (i = 0; i < MAX_TIMER; i++) {
         if (timerctl.timer[i].flags == 0) {
@@ -51,7 +51,6 @@ void timer_settime(struct TIMER *timer, unsigned int timeout) {
     return;
 }
 
-
 void intHandlerForTimer(char *esp) {
     io_out8(PIC0_OCW2, 0x20);
 
@@ -70,17 +69,15 @@ void intHandlerForTimer(char *esp) {
                 }
             }
         }
- 
+
         if (ts != 0) {
-           task_switch();
+            task_switch();
         }
     }
-
 
     return;
 }
 
-
-struct TIMERCTL* getTimerController() {
+struct TIMERCTL *getTimerController() {
     return &timerctl;
 }
