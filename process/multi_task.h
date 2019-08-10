@@ -32,17 +32,39 @@ void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
 struct TASK {
     int sel, flags;
     int priority;
+    int level;
     struct TSS32 tss;
 };
 
 #define MAX_TASKS 5
+#define MAX_TASKS_LV 3
+#define MAX_TASKLEVELS 3
 #define TASK_GDT0 7
-#define SIZE_OF_TASK 112
+#define SIZE_OF_TASK 120
 
-struct TASKCTL {
+/*
+    优先级队列
+    running 队列的任务列表长度
+    now 当前队首的任务对象
+    task 任务对象数组
+*/
+struct TASKLEVEL {
     int running;
     int now;
-    struct TASK *tasks[MAX_TASKS];
+    struct TASK *tasks[MAX_TASKS_LV];
+};
+
+/*
+    进程管理
+    now_lv
+    lv_change
+    level 当前优先级队列
+    tasks0 当前进程对象数组
+*/
+struct TASKCTL {
+    int now_lv;
+    int lv_change;
+    struct TASKLEVEL level[MAX_TASKLEVELS];
     struct TASK tasks0[MAX_TASKS];
 };
 
@@ -61,7 +83,7 @@ struct TASK *task_alloc();
 /*
     启动线程
  */
-void task_run(struct TASK *task, int priority);
+void task_run(struct TASK *task, int level, int priority);
 
 /*
     切换线程
@@ -71,4 +93,21 @@ void task_switch();
 /*
     挂起线程
 */
-void task_sleep(struct TASK *task);
+int task_sleep(struct TASK *task);
+
+/*
+    初始化优先级队列
+*/
+void init_task_level(int level);
+
+/*
+    根据优先级加入队列
+*/
+void task_add(struct TASK *task);
+
+void task_switchsub();
+
+void task_remove(struct TASK *task);
+
+struct TASK *task_now();
+

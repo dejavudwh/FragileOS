@@ -135,7 +135,7 @@ void task_b_main(struct SHEET *sht_win_b);
 static int task_b = 0;
 static struct TIMER g_timer_b;
 
-void CMain(void) {
+void launch(void) {
     initBootInfo(&bootInfo);
 
     char *vram = bootInfo.vgaRam;
@@ -205,48 +205,14 @@ void CMain(void) {
     static struct TSS32 tss_b, tss_a;
     static struct TASK *task_a;
 
-    unsigned char *buf_win_b;
-    struct SHEET *sht_win_b[3];
-    static struct TASK *task_b[3];
-
     task_a = task_init(memman);
     keyinfo.task = task_a;
-    char taskTitle[6] = {'t', 'a', 's', 'k', 0, 0};
-    int i = 0;
-    for (i = 0; i < 2; i++) {
-        sht_win_b[i] = sheet_alloc(shtctl);
-        buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
-        char c = 'b' + i;
-        taskTitle[4] = c;
-        sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
-        make_window8(shtctl, sht_win_b[i], taskTitle);
+    task_run(task_a, 0, 0);
 
-        task_b[i] = task_alloc();
-        task_b[i]->tss.ldtr = 0;
-        task_b[i]->tss.iomap = 0x40000000;
-        task_b[i]->tss.eip = (int)(task_b_main - addr_code32);
-
-        task_b[i]->tss.es = 0;
-        task_b[i]->tss.cs = 1 * 8;  // 6 * 8;
-        task_b[i]->tss.ss = 4 * 8;
-        task_b[i]->tss.ds = 3 * 8;
-        task_b[i]->tss.fs = 0;
-        task_b[i]->tss.gs = 2 * 8;
-        task_b[i]->tss.esp -= 8;
-        *((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
-
-        task_run(task_b[i], (i + 1) * 5);
-    }
-    sheet_slide(shtctl, sht_win_b[0], 16, 28);
-    sheet_updown(shtctl, sht_win_b[0], 1);
-
-    sheet_slide(shtctl, sht_win_b[1], 160, 28);
-    sheet_updown(shtctl, sht_win_b[1], 1);
-    // switch task
+    multi_windows();
 
     int data = 0;
     int count = 0;
-    i = 0;
     int pos = 0;
     int stop_task_A = 0;
 
@@ -292,9 +258,7 @@ void CMain(void) {
             io_sti();
             int i = fifo8_get(&timerinfo);
             if (i == 10) {
-                showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A");
-                // switch task
-                //  farjmp(0, 9*8);
+                showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A"); 
                 timer_settime(timer, 100);
                 pos += 8;
                 if (pos > 40 && stop_task_A == 0) {
@@ -815,4 +779,44 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
     boxfill8(sht->buf, sht->bxsize, COL8_C6C6C6, x1 + 1, y0 - 2, x1 + 1,
              y1 + 1);
     boxfill8(sht->buf, sht->bxsize, c, x0 - 1, y0 - 1, x1 + 0, y1 + 0);
+}
+
+void multi_windows() {
+    unsigned char *buf_win_b;
+    struct SHEET *sht_win_b[3];
+    static struct TASK *task_b[3];
+    
+    int addr_code32 = get_addr_code32();
+
+    char taskTitle[6] = {'t', 'a', 's', 'k', 0, 0};
+    int i = 0;
+    for (i = 0; i < 2; i++) {
+        sht_win_b[i] = sheet_alloc(shtctl);
+        buf_win_b = (unsigned char *)memman_alloc_4k(memman, 144 * 52);
+        char c = 'b' + i;
+        taskTitle[4] = c;
+        sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
+        make_window8(shtctl, sht_win_b[i], taskTitle);
+
+        task_b[i] = task_alloc();
+        task_b[i]->tss.ldtr = 0;
+        task_b[i]->tss.iomap = 0x40000000;
+        task_b[i]->tss.eip = (int)(task_b_main - addr_code32);
+
+        task_b[i]->tss.es = 0;
+        task_b[i]->tss.cs = 1 * 8;  // 6 * 8;
+        task_b[i]->tss.ss = 4 * 8;
+        task_b[i]->tss.ds = 3 * 8;
+        task_b[i]->tss.fs = 0;
+        task_b[i]->tss.gs = 2 * 8;
+        task_b[i]->tss.esp -= 8;
+        *((int *)(task_b[i]->tss.esp + 4)) = (int)sht_win_b[i];
+
+        task_run(task_b[i], 1, (i + 1) * 5);
+    }
+    sheet_slide(shtctl, sht_win_b[0], 16, 28);
+    sheet_updown(shtctl, sht_win_b[0], 1);
+
+    sheet_slide(shtctl, sht_win_b[1], 160, 28);
+    sheet_updown(shtctl, sht_win_b[1], 1);
 }
