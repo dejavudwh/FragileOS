@@ -1,5 +1,4 @@
 
-#include "../interrupt/queue.h"
 #include "../interrupt/timer.h"
 #include "../memory/mem_util.h"
 #include "../process/multi_task.h"
@@ -136,7 +135,7 @@ void console_task(struct SHEET *sheet);
 struct SHEET *launch_console();
 
 static int task_b = 0;
-static struct TIMER g_timer_b;
+static struct TASK *task_cons = 0;
 
 void launch(void) {
     initBootInfo(&bootInfo);
@@ -253,26 +252,28 @@ void launch(void) {
 
                 sheet_refresh(shtctl, shtMsgBox, 0, 0, shtMsgBox->bxsize, 21);
                 sheet_refresh(shtctl, sht_cons, 0, 0, sht_cons->bxsize, 21);
-            } else if (data < 0x54 && keytable[data] != 0 && cursor_x < 144) {
-                boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
-                         cursor_x, 28, cursor_x + 7, 43);
-                sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
-                              44);
+            } else if (key_to == 0) {
+                if (data < 0x54 && keytable[data] != 0 && cursor_x < 144) {
+                    boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
+                             cursor_x, 28, cursor_x + 7, 43);
+                    sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
+                                  44);
 
-                char buf[2] = {keytable[data], 0};
-                // test
-                // showString(shtctl, sht_back, 0, pos2 + 200, COL8_FFFFFF,
-                //            intToHexStr(data));
-                // pos2 += 15;
-                showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000, buf);
-                cursor_x += 8;
+                    char buf[2] = {keytable[data], 0};
+                    showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000,
+                               buf);
+                    cursor_x += 8;
 
-                stop_task_A = 1;
+                    stop_task_A = 1;
 
-                boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c, cursor_x,
-                         28, cursor_x + 7, 43);
-                sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
-                              44);
+                    boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c,
+                             cursor_x, 28, cursor_x + 7, 43);
+                    sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
+                                  44);
+                }
+            } else {
+                task_sleep(task_a);
+                fifo8_put(&task_cons->fifo, data);
             }
 
         } else if (fifo8_status(&mouseinfo) != 0) {
@@ -887,41 +888,68 @@ struct SHEET *launch_console() {
     sheet_slide(shtctl, sht_cons, 32, 4);
     sheet_updown(shtctl, sht_cons, 1);
 
+    task_cons = task_console;
+
     return sht_cons;
 }
 
-void console_task(struct SHEET *sheet) {
-    struct FIFO8 fifo;
+void console_task(struct SHEET *sheet) { 
     struct TIMER *timer;
     struct TASK *task = task_now();
 
     int i, fifobuf[128], cursor_x = 8, cursor_c = COL8_000000;
-    fifo8_init(&fifo, 128, fifobuf, task);
+    fifo8_init(&task->fifo, 128, fifobuf, task);
     timer = timer_alloc();
-    timer_init(timer, &fifo, 1);
+    timer_init(timer, &task->fifo, 1);
     timer_settime(timer, 50);
+
+    showString(shtctl, sheet, 8, 28, COL8_FFFFFF, ">");
 
     for (;;) {
         io_cli();
-        if (fifo8_status(&fifo) == 0) {
+        if (fifo8_status(&task->fifo) == 0) {
             io_sti();
         } else {
-            i = fifo8_get(&fifo);
+            i = fifo8_get(&task->fifo);
             io_sti();
             if (i <= 1) {
                 if (i != 0) {
-                    timer_init(timer, &fifo, 0);
+                    timer_init(timer, &task->fifo, 0);
                     cursor_c = COL8_FFFFFF;
                 } else {
-                    timer_init(timer, &fifo, 1);
+                    timer_init(timer, &task->fifo, 1);
                     cursor_c = COL8_000000;
                 }
+            } else {
+                if (i == 0x0e && cursor_x > 8) {
+                    boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x,
+                             28, cursor_x + 7, 43);
+                    sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
+                                  44);
 
-                timer_settime(timer, 50);
-                boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28,
-                         cursor_x + 7, 43);
-                sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8, 44);
+                    cursor_x -= 8;
+
+                    boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x,
+                             28, cursor_x + 7, 43);
+                    sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
+                                  44);
+                } else {
+                    if (cursor_x < 240 && i < 0x54 && keytable[i] != 0) {
+                        boxfill8(sheet->buf, sheet->bxsize, COL8_000000,
+                                 cursor_x, 28, cursor_x + 7, 43);
+                        sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
+                                      44);
+
+                        char buf[2] = {keytable[i], 0};
+                        showString(shtctl, sheet, cursor_x, 28, COL8_FFFFFF, buf);
+                        cursor_x += 8;
+                    }
+                }
             }
+
+            boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28,
+                     cursor_x + 7, 43);
+            sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8, 44);
         }
     }
 }

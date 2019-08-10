@@ -1,3 +1,5 @@
+#include "../interrupt/queue.h"
+
 /*
     用来描述TSS32：切换进程用来保存环境的数据结构
  */
@@ -33,6 +35,7 @@ struct TASK {
     int sel, flags;
     int priority;
     int level;
+    struct FIFO8 fifo;
     struct TSS32 tss;
 };
 
@@ -110,4 +113,3 @@ void task_switchsub();
 void task_remove(struct TASK *task);
 
 struct TASK *task_now();
-

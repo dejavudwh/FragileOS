@@ -1,6 +1,5 @@
 #include "../interrupt/timer.h"
 #include "../process/multi_task.h"
-#include "queue.h"
 
 #define PIC0_OCW2 0x20
 #define PIC1_OCW2 0xA0

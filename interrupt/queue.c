@@ -1,4 +1,3 @@
-#include "queue.h"
 #include "../process/multi_task.h"
 
 void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf,
