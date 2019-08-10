@@ -209,3 +209,8 @@ struct TASK *task_now() {
     struct TASKLEVEL *tl = &taskctl->level[taskctl->now_lv];
     return tl->tasks[tl->now];
 }
+
+void send_message(struct TASK *sender, struct TASK *receiver, int msg) {
+    fifo8_put(&receiver->fifo, msg);
+    task_sleep(sender);
+}

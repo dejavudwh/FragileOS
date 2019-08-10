@@ -110,6 +110,17 @@ void task_add(struct TASK *task);
 
 void task_switchsub();
 
+/*
+    移除进程
+*/
 void task_remove(struct TASK *task);
 
 struct TASK *task_now();
+
+#define PROC_RESUME 0x57
+#define PROC_PAUSE 0x58
+
+/*
+    进程间的相互通信
+*/
+void send_message(struct TASK *sender, struct TASK *receiver, int msg);

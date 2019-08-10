@@ -106,6 +106,8 @@ char *intToHexStr(unsigned int d);
 
 void init_keyboard(void);
 void enable_mouse(struct MOUSE_DEC *mdec);
+void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cursor_x,
+                int cursor_y, int cursor_c);
 
 void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
                      struct SHEET *sht_mouse);
@@ -150,6 +152,7 @@ struct SHEET *launch_console();
 
 static int task_b = 0;
 static struct TASK *task_cons = 0;
+static struct TASK *task_main = 0;
 
 int key_shift = 0;
 int caps_lock = 0;
@@ -226,6 +229,7 @@ void launch(void) {
 
     task_a = task_init(memman);
     keyinfo.task = task_a;
+    task_main = task_a;
     task_run(task_a, 0, 0);
 
     // multi_windows();
@@ -257,26 +261,29 @@ void launch(void) {
                 }
 
             } else if (data == 0x0f) {
+                int msg = -1;
+
                 if (key_to == 0) {
                     key_to = 1;
                     make_wtitle8(shtctl, shtMsgBox, "task_a", 0);
                     make_wtitle8(shtctl, sht_cons, "console", 1);
+                    set_cursor(shtctl, shtMsgBox, cursor_x, 28, COL8_FFFFFF);
+                    msg = PROC_RESUME;
                 } else {
                     key_to = 0;
                     make_wtitle8(shtctl, shtMsgBox, "task_a", 1);
                     make_wtitle8(shtctl, sht_cons, "console", 0);
+                    msg = PROC_PAUSE;
                 }
 
                 sheet_refresh(shtctl, shtMsgBox, 0, 0, shtMsgBox->bxsize, 21);
                 sheet_refresh(shtctl, sht_cons, 0, 0, sht_cons->bxsize, 21);
+                send_message(task_a, task_cons, msg);
             } else if (key_to == 0) {
                 char tfs = transferScanCode(data);
                 if (tfs != 0 && data < 0x54 && keytable[data] != 0 &&
                     cursor_x < 144) {
-                    boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
-                             cursor_x, 28, cursor_x + 7, 43);
-                    sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
-                                  44);
+                    set_cursor(shtctl, shtMsgBox, cursor_x, 28, COL8_FFFFFF);
 
                     char buf[2] = {tfs, 0};
                     showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000,
@@ -285,10 +292,7 @@ void launch(void) {
 
                     stop_task_A = 1;
 
-                    boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c,
-                             cursor_x, 28, cursor_x + 7, 43);
-                    sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
-                                  44);
+                    set_cursor(shtctl, shtMsgBox, cursor_x, 28, cursor_c);
                 }
             } else if (isSpecialKey(data) == 0) {
                 fifo8_put(&task_cons->fifo, data);
@@ -299,34 +303,25 @@ void launch(void) {
 
         } else if (fifo8_status(&mouseinfo) != 0) {
             show_mouse_info(shtctl, sht_back, sht_mouse);
-        } else if (fifo8_status(&timerinfo) != 0) {
+        }
+
+        if (fifo8_status(&timerinfo) != 0) {
             io_sti();
             int i = fifo8_get(&timerinfo);
-            if (i == 10) {
-                showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A");
-                timer_settime(timer, 100);
-                pos += 8;
-                if (pos > 40 && stop_task_A == 0) {
-                    io_cli();
-                    task_sleep(task_a);
-                    io_sti();
-                }
-            } else if (i == 2) {
-                showString(shtctl, sht_back, 0, 32, COL8_FFFFFF, "3[sec]");
-            } else {
-                if (i != 0) {
-                    timer_init(timer3, &timerinfo, 0);
-                    cursor_c = COL8_000000;
-                } else {
-                    timer_init(timer3, &timerinfo, 1);
-                    cursor_c = COL8_FFFFFF;
-                }
 
-                timer_settime(timer3, 50);
-                boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, cursor_c, cursor_x,
-                         28, cursor_x + 7, 43);
-                sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
-                              44);
+            if (i != 0) {
+                timer_init(timer3, &timerinfo, 0);
+                cursor_c = COL8_000000;
+            } else {
+                timer_init(timer3, &timerinfo, 1);
+                cursor_c = COL8_FFFFFF;
+            }
+
+            timer_settime(timer3, 50);
+            if (key_to == 0) {
+                set_cursor(shtctl, shtMsgBox, cursor_x, 28, cursor_c);
+            } else {
+                set_cursor(shtctl, shtMsgBox, cursor_x, 28, COL8_FFFFFF);
             }
         }
     }
@@ -360,7 +355,6 @@ void task_b_main(struct SHEET *sht_win_b) {
             io_sti();
             if (i == 123) {
                 showString(shtctl, sht_back, pos, 192, COL8_FFFFFF, "B");
-                // farjmp(0, 8*8);
                 timer_settime(timer_b, 100);
                 pos += 8;
                 boxfill8(sht_win_b->buf, 144, COL8_C6C6C6, 24, 28, 104, 44);
@@ -918,7 +912,8 @@ void console_task(struct SHEET *sheet) {
     struct TIMER *timer;
     struct TASK *task = task_now();
 
-    int i, fifobuf[128], cursor_x = 8, cursor_c = COL8_000000;
+    int i, fifobuf[128], cursor_x = 16, cursor_y = 28, cursor_c = COL8_000000;
+
     fifo8_init(&task->fifo, 128, fifobuf, task);
     timer = timer_alloc();
     timer_init(timer, &task->fifo, 1);
@@ -926,6 +921,7 @@ void console_task(struct SHEET *sheet) {
 
     showString(shtctl, sheet, 8, 28, COL8_FFFFFF, ">");
 
+    int pos = 0;
     for (;;) {
         io_cli();
         if (fifo8_status(&task->fifo) == 0) {
@@ -933,7 +929,7 @@ void console_task(struct SHEET *sheet) {
         } else {
             i = fifo8_get(&task->fifo);
             io_sti();
-            if (i <= 1) {
+            if (i <= 1 && cursor_c >= 0) {
                 if (i != 0) {
                     timer_init(timer, &task->fifo, 0);
                     cursor_c = COL8_FFFFFF;
@@ -941,38 +937,33 @@ void console_task(struct SHEET *sheet) {
                     timer_init(timer, &task->fifo, 1);
                     cursor_c = COL8_000000;
                 }
+                timer_settime(timer, 50);
+            } else if (i == PROC_RESUME) {
+                cursor_c = COL8_FFFFFF;
+                timer_init(timer, &task->fifo, 0);
+                timer_settime(timer, 50);
+            } else if (i == PROC_PAUSE) {
+                set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
+                cursor_c = -1;
+                task_run(task_main, -1, 0);
+            } else if (i == 0x0e && cursor_x > 8) {
+                set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
+                cursor_x -= 8;
+                set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
             } else {
-                if (i == 0x0e && cursor_x > 8) {
-                    boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x,
-                             28, cursor_x + 7, 43);
-                    sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
-                                  44);
-
-                    cursor_x -= 8;
-
-                    boxfill8(sheet->buf, sheet->bxsize, COL8_000000, cursor_x,
-                             28, cursor_x + 7, 43);
-                    sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
-                                  44);
-                } else {
-                    char tfs = transferScanCode(i);
-                    if (cursor_x < 240 && i < 0x54 && tfs != 0) {
-                        boxfill8(sheet->buf, sheet->bxsize, COL8_000000,
-                                 cursor_x, 28, cursor_x + 7, 43);
-                        sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
-                                      44);
-
-                        char buf[2] = {tfs, 0};
-                        showString(shtctl, sheet, cursor_x, 28, COL8_FFFFFF,
-                                   buf);
-                        cursor_x += 8;
-                    }
+                char tfs = transferScanCode(i);
+                if (cursor_x < 240 && tfs != 0) {
+                    set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
+                    char buf[2] = {tfs, 0};
+                    showString(shtctl, sheet, cursor_x, cursor_y, COL8_FFFFFF,
+                               buf);
+                    cursor_x += 8;
                 }
             }
 
-            boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28,
-                     cursor_x + 7, 43);
-            sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8, 44);
+            if (cursor_c >= 0) {
+                set_cursor(shtctl, sheet, cursor_x, cursor_y, cursor_c);
+            }
         }
     }
 }
@@ -1038,4 +1029,12 @@ int isSpecialKey(int data) {
     }
 
     return 0;
+}
+
+void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cursor_x,
+                int cursor_y, int cursor_c) {
+    boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, cursor_y,
+             cursor_x + 7, cursor_y + 15);
+    sheet_refresh(shtctl, sheet, cursor_x, cursor_y, cursor_x + 8,
+                  cursor_y + 16);
 }
