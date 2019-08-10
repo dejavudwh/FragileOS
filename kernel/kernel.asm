@@ -52,7 +52,7 @@ LABEL_IDT:
 %endrep
 
 .2CH:                                       ; IRO4 so 28h + 4 = 2ch
-    Gate SelectorCode32, mouseHandler,  0,  DA_386IGate
+    Gate  SelectorCode32, mouseHandler,      0,  DA_386IGate
 
 IdtLen  equ $ - LABEL_IDT
 IdtPtr  dw  IdtLen - 1
@@ -213,53 +213,59 @@ SpuriousHandler  equ _SpuriousHandler - $$
 
 _KeyBoardHandler:
 KeyBoardHandler equ _KeyBoardHandler - $$
-     push es
-     push ds
      pushad
-     mov  eax, esp
-     push eax
+     push ds
+     push es
+     push fs
+     push gs
 
      call _intHandlerFromC
 
-     pop  eax
-     mov  esp, eax
+     pop gs
+     pop fs
+     pop es
+     pop ds
+
      popad
-     pop  ds
-     pop  es
+
      iretd
 
 _mouseHandler:
 mouseHandler equ _mouseHandler - $$
-     push es
-     push ds
      pushad
-     mov  eax, esp
-     push eax
+     push ds
+     push es
+     push fs
+     push gs
 
      call _intHandlerForMouse
 
-     pop  eax
-     mov  esp, eax
+     pop gs
+     pop fs
+     pop es
+     pop ds
+
      popad
-     pop  ds
-     pop  es
+
      iretd
 
 _timerHandler:
 timerHandler equ _timerHandler - $$
-     push es
-     push ds
      pushad
-     mov  eax, esp
-     push eax
+     push ds
+     push es
+     push fs
+     push gs
 
      call _intHandlerForTimer
 
-     pop  eax
-     mov  esp, eax
+     pop gs
+     pop fs
+     pop es
+     pop ds
      popad
-     pop  ds
-     pop  es
+
+    
      iretd
 
 _get_font_data:
@@ -309,8 +315,8 @@ _io_in32:
 
 _io_out8:
     mov edx, [esp + 4]
-    mov al, [esp + 8]
-    out dx, al
+    mov al,  [esp + 8]
+    out dx,  al
     ret
 
 _io_out16:

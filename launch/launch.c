@@ -118,7 +118,8 @@ void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
 void init_screen8(char *vram, int x, int y);
 
 struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
-void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title);
+void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
+                  char act);
 
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
@@ -132,7 +133,7 @@ static struct SHEET *sht_back, *sht_mouse;
 
 void task_b_main(struct SHEET *sht_win_b);
 void console_task(struct SHEET *sheet);
-void launch_console();
+struct SHEET *launch_console();
 
 static int task_b = 0;
 static struct TIMER g_timer_b;
@@ -212,12 +213,14 @@ void launch(void) {
     task_run(task_a, 0, 0);
 
     // multi_windows();
-    launch_console();
+    struct SHEET *sht_cons = launch_console();
 
     int data = 0;
     int count = 0;
     int pos = 0;
+    // int pos2 = 0;
     int stop_task_A = 0;
+    int key_to = 0;
 
     for (;;) {
         io_cli();
@@ -237,13 +240,30 @@ void launch(void) {
                     count = 0;
                 }
 
-            } else if (keytable[data] != 0 && cursor_x < 144) {
+            } else if (data == 0x0f) {
+                if (key_to == 0) {
+                    key_to = 1;
+                    make_wtitle8(shtctl, shtMsgBox, "task_a", 0);
+                    make_wtitle8(shtctl, sht_cons, "console", 1);
+                } else {
+                    key_to = 0;
+                    make_wtitle8(shtctl, shtMsgBox, "task_a", 1);
+                    make_wtitle8(shtctl, sht_cons, "console", 0);
+                }
+
+                sheet_refresh(shtctl, shtMsgBox, 0, 0, shtMsgBox->bxsize, 21);
+                sheet_refresh(shtctl, sht_cons, 0, 0, sht_cons->bxsize, 21);
+            } else if (data < 0x54 && keytable[data] != 0 && cursor_x < 144) {
                 boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
                          cursor_x, 28, cursor_x + 7, 43);
                 sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
                               44);
 
                 char buf[2] = {keytable[data], 0};
+                // test
+                // showString(shtctl, sht_back, 0, pos2 + 200, COL8_FFFFFF,
+                //            intToHexStr(data));
+                // pos2 += 15;
                 showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000, buf);
                 cursor_x += 8;
 
@@ -705,7 +725,7 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     buf_win = (unsigned char *)memman_alloc_4k(memman, 160 * 68);
     sheet_setbuf(sht_win, buf_win, 160, 68, -1);
 
-    make_window8(shtctl, sht_win, title);
+    make_window8(shtctl, sht_win, title, 1);
     make_textbox8(sht_win, 8, 28, 144, 16, COL8_FFFFFF);
 
     sheet_slide(shtctl, sht_win, 260, 172);
@@ -714,18 +734,11 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title) {
     return sht_win;
 }
 
-void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title) {
-    static char closebtn[14][16] = {
-        "OOOOOOOOOOOOOOO@", "OQQQQQQQQQQQQQ$@", "OQQQQQQQQQQQQQ$@",
-        "OQQQ@@QQQQ@@QQ$@", "OQQQQ@@QQ@@QQQ$@", "OQQQQQ@@@@QQQQ$@",
-        "OQQQQQQ@@QQQQQ$@", "OQQQQQ@@@@QQQQ$@", "OQQQQ@@QQ@@QQQ$@",
-        "OQQQ@@QQQQ@@QQ$@", "OQQQQQQQQQQQQQ$@", "OQQQQQQQQQQQQQ$@",
-        "O$$$$$$$$$$$$$$@", "@@@@@@@@@@@@@@@@"};
-
-    int x, y;
-    char c;
+void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
+                  char act) {
     int bxsize = sht->bxsize;
     int bysize = sht->bysize;
+
     boxfill8(sht->buf, bxsize, COL8_C6C6C6, 0, 0, bxsize - 1, 0);
     boxfill8(sht->buf, bxsize, COL8_FFFFFF, 1, 1, bxsize - 2, 1);
     boxfill8(sht->buf, bxsize, COL8_C6C6C6, 0, 0, 0, bysize - 1);
@@ -741,7 +754,32 @@ void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title) {
     boxfill8(sht->buf, bxsize, COL8_000000, 0, bysize - 1, bxsize - 1,
              bysize - 1);
 
-    showString(shtctl, sht, 24, 4, COL8_FFFFFF, title);
+    make_wtitle8(shtctl, sht, title, act);
+
+    return;
+}
+
+void make_wtitle8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
+                  char act) {
+    static char closebtn[14][16] = {
+        "OOOOOOOOOOOOOOO@", "OQQQQQQQQQQQQQ$@", "OQQQQQQQQQQQQQ$@",
+        "OQQQ@@QQQQ@@QQ$@", "OQQQQ@@QQ@@QQQ$@", "OQQQQQ@@@@QQQQ$@",
+        "OQQQQQQ@@QQQQQ$@", "OQQQQQ@@@@QQQQ$@", "OQQQQ@@QQ@@QQQ$@",
+        "OQQQ@@QQQQ@@QQ$@", "OQQQQQQQQQQQQQ$@", "OQQQQQQQQQQQQQ$@",
+        "O$$$$$$$$$$$$$$@", "@@@@@@@@@@@@@@@@"};
+
+    int x, y;
+    char c, tc, tbc;
+    if (act != 0) {
+        tc = COL8_FFFFFF;
+        tbc = COL8_000084;
+    } else {
+        tc = COL8_C6C6C6;
+        tbc = COL8_848484;
+    }
+
+    boxfill8(sht->buf, sht->bxsize, tbc, 3, 3, sht->bxsize - 4, 20);
+    showString(shtctl, sht, 24, 4, tc, title);
 
     for (y = 0; y < 14; y++) {
         for (x = 0; x < 16; x++) {
@@ -759,8 +797,6 @@ void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title) {
             sht->buf[(5 + y) * sht->bxsize + (sht->bxsize - 21 + x)] = c;
         }
     }
-
-    return;
 }
 
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
@@ -799,7 +835,7 @@ void multi_windows() {
         char c = 'b' + i;
         taskTitle[4] = c;
         sheet_setbuf(sht_win_b[i], buf_win_b, 144, 52, -1);
-        make_window8(shtctl, sht_win_b[i], taskTitle);
+        make_window8(shtctl, sht_win_b[i], taskTitle, 1);
 
         task_b[i] = task_alloc();
         task_b[i]->tss.ldtr = 0;
@@ -824,12 +860,12 @@ void multi_windows() {
     sheet_updown(shtctl, sht_win_b[1], 1);
 }
 
-void launch_console() {
+struct SHEET *launch_console() {
     struct SHEET *sht_cons = sheet_alloc(shtctl);
     unsigned char *buf_cons =
         (unsigned char *)memman_alloc_4k(memman, 256 * 165);
     sheet_setbuf(sht_cons, buf_cons, 256, 165, COLOR_INVISIBLE);
-    make_window8(shtctl, sht_cons, "console");
+    make_window8(shtctl, sht_cons, "console", 0);
     make_textbox8(sht_cons, 8, 28, 240, 128, COL8_000000);
 
     struct TASK *task_console = task_alloc();
@@ -850,6 +886,8 @@ void launch_console() {
 
     sheet_slide(shtctl, sht_cons, 32, 4);
     sheet_updown(shtctl, sht_cons, 1);
+
+    return sht_cons;
 }
 
 void console_task(struct SHEET *sheet) {
@@ -865,7 +903,7 @@ void console_task(struct SHEET *sheet) {
 
     for (;;) {
         io_cli();
-        if (fifo8_status(&fifo) == 0) { 
+        if (fifo8_status(&fifo) == 0) {
             io_sti();
         } else {
             i = fifo8_get(&fifo);
