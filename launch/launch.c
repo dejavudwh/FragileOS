@@ -49,6 +49,17 @@ static char keytable[0x54] = {
     0, ' ', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
     0, '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '0', '.'};
 
+static char keytable1[0x80] = {
+    0,   0,   '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '=', '~',
+    0,   0,   'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '`', '{', 0,
+    0,   'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', '+', '*', 0,   0,   '}',
+    'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', 0,   '*', 0,   ' ', 0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   '7', '8', '9',
+    '-', '4', '5', '6', '+', '1', '2', '3', '0', '.', 0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   '_', 0,   0,   0,
+    0,   0,   0,   0,   0,   0,   '|', 0,   0};
+
 struct BOOTINFO {
     char *vgaRam;
     short screenX, screenY;
@@ -114,6 +125,8 @@ void showMemoryInfo(struct SHTCTL *shtctl, struct SHEET *sht,
                     struct AddrRangeDesc *desc, char *vram, int page, int xsize,
                     int color);
 
+char transferScanCode(int data);
+
 void init_screen8(char *vram, int x, int y);
 
 struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
@@ -126,6 +139,7 @@ static unsigned char *buf_back, buf_mouse[256];
 #define COLOR_INVISIBLE 99
 
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
+
 static struct SHEET *shtMsgBox;
 static struct SHTCTL *shtctl;
 static struct SHEET *sht_back, *sht_mouse;
@@ -136,6 +150,9 @@ struct SHEET *launch_console();
 
 static int task_b = 0;
 static struct TASK *task_cons = 0;
+
+int key_shift = 0;
+int caps_lock = 0;
 
 void launch(void) {
     initBootInfo(&bootInfo);
@@ -253,13 +270,15 @@ void launch(void) {
                 sheet_refresh(shtctl, shtMsgBox, 0, 0, shtMsgBox->bxsize, 21);
                 sheet_refresh(shtctl, sht_cons, 0, 0, sht_cons->bxsize, 21);
             } else if (key_to == 0) {
-                if (data < 0x54 && keytable[data] != 0 && cursor_x < 144) {
+                char tfs = transferScanCode(data);
+                if (tfs != 0 && data < 0x54 && keytable[data] != 0 &&
+                    cursor_x < 144) {
                     boxfill8(shtMsgBox->buf, shtMsgBox->bxsize, COL8_FFFFFF,
                              cursor_x, 28, cursor_x + 7, 43);
                     sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
                                   44);
 
-                    char buf[2] = {keytable[data], 0};
+                    char buf[2] = {tfs, 0};
                     showString(shtctl, shtMsgBox, cursor_x, 28, COL8_000000,
                                buf);
                     cursor_x += 8;
@@ -271,9 +290,11 @@ void launch(void) {
                     sheet_refresh(shtctl, shtMsgBox, cursor_x, 28, cursor_x + 8,
                                   44);
                 }
-            } else {
-                task_sleep(task_a);
+            } else if (isSpecialKey(data) == 0) {
                 fifo8_put(&task_cons->fifo, data);
+                if (fifo8_status(&keyinfo) == 0) {
+                    task_sleep(task_a);
+                }
             }
 
         } else if (fifo8_status(&mouseinfo) != 0) {
@@ -893,7 +914,7 @@ struct SHEET *launch_console() {
     return sht_cons;
 }
 
-void console_task(struct SHEET *sheet) { 
+void console_task(struct SHEET *sheet) {
     struct TIMER *timer;
     struct TASK *task = task_now();
 
@@ -934,14 +955,16 @@ void console_task(struct SHEET *sheet) {
                     sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
                                   44);
                 } else {
-                    if (cursor_x < 240 && i < 0x54 && keytable[i] != 0) {
+                    char tfs = transferScanCode(i);
+                    if (cursor_x < 240 && i < 0x54 && tfs != 0) {
                         boxfill8(sheet->buf, sheet->bxsize, COL8_000000,
                                  cursor_x, 28, cursor_x + 7, 43);
                         sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8,
                                       44);
 
-                        char buf[2] = {keytable[i], 0};
-                        showString(shtctl, sheet, cursor_x, 28, COL8_FFFFFF, buf);
+                        char buf[2] = {tfs, 0};
+                        showString(shtctl, sheet, cursor_x, 28, COL8_FFFFFF,
+                                   buf);
                         cursor_x += 8;
                     }
                 }
@@ -952,4 +975,67 @@ void console_task(struct SHEET *sheet) {
             sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8, 44);
         }
     }
+}
+
+char transferScanCode(int data) {
+    if (data == 0x2a) {
+        // left shift key down
+        key_shift |= 1;
+    }
+
+    if (data == 0x36) {
+        // right shift key down
+        key_shift |= 2;
+    }
+
+    if (data == 0xaa) {
+        // left shift key up
+        key_shift &= ~1;
+    }
+
+    if (data == 0xb6) {
+        // right shift key up
+        key_shift &= ~2;
+    }
+
+    // caps lock
+    if (data == 0x3a) {
+        if (caps_lock == 0) {
+            caps_lock = 1;
+        } else {
+            caps_lock = 0;
+        }
+    }
+
+    if (data == 0x2a || data == 0x36 || data == 0xaa || data == 0xb6 ||
+        data >= 0x54 || data == 0x3a) {
+        return 0;
+    }
+
+    char c = 0;
+
+    if (key_shift == 0 && data < 0x54 && keytable[data] != 0) {
+        c = keytable[data];
+        if ('A' <= c && c <= 'Z' && caps_lock == 0) {
+            c += 0x20;
+        }
+
+    } else if (key_shift != 0 && data < 0x80 && keytable1[data] != 0) {
+        c = keytable1[data];
+    } else {
+        c = 0;
+    }
+
+    return c;
+}
+
+int isSpecialKey(int data) {
+    transferScanCode(data);
+
+    if (data == 0x3a || data == 0xba || data == 0x2a || data == 0x36 ||
+        data == 0xaa || data == 0xb6) {
+        return 1;
+    }
+
+    return 0;
 }
