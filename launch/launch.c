@@ -131,6 +131,8 @@ static struct SHTCTL *shtctl;
 static struct SHEET *sht_back, *sht_mouse;
 
 void task_b_main(struct SHEET *sht_win_b);
+void console_task(struct SHEET *sheet);
+void launch_console();
 
 static int task_b = 0;
 static struct TIMER g_timer_b;
@@ -209,7 +211,8 @@ void launch(void) {
     keyinfo.task = task_a;
     task_run(task_a, 0, 0);
 
-    multi_windows();
+    // multi_windows();
+    launch_console();
 
     int data = 0;
     int count = 0;
@@ -258,7 +261,7 @@ void launch(void) {
             io_sti();
             int i = fifo8_get(&timerinfo);
             if (i == 10) {
-                showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A"); 
+                showString(shtctl, sht_back, pos, 144, COL8_FFFFFF, "A");
                 timer_settime(timer, 100);
                 pos += 8;
                 if (pos > 40 && stop_task_A == 0) {
@@ -785,7 +788,7 @@ void multi_windows() {
     unsigned char *buf_win_b;
     struct SHEET *sht_win_b[3];
     static struct TASK *task_b[3];
-    
+
     int addr_code32 = get_addr_code32();
 
     char taskTitle[6] = {'t', 'a', 's', 'k', 0, 0};
@@ -819,4 +822,68 @@ void multi_windows() {
 
     sheet_slide(shtctl, sht_win_b[1], 160, 28);
     sheet_updown(shtctl, sht_win_b[1], 1);
+}
+
+void launch_console() {
+    struct SHEET *sht_cons = sheet_alloc(shtctl);
+    unsigned char *buf_cons =
+        (unsigned char *)memman_alloc_4k(memman, 256 * 165);
+    sheet_setbuf(sht_cons, buf_cons, 256, 165, COLOR_INVISIBLE);
+    make_window8(shtctl, sht_cons, "console");
+    make_textbox8(sht_cons, 8, 28, 240, 128, COL8_000000);
+
+    struct TASK *task_console = task_alloc();
+    int addr_code32 = get_addr_code32();
+    task_console->tss.ldtr = 0;
+    task_console->tss.iomap = 0x40000000;
+    task_console->tss.eip = (int)(console_task - addr_code32);
+
+    task_console->tss.es = 0;
+    task_console->tss.cs = 1 * 8;  // 6 * 8;
+    task_console->tss.ss = 4 * 8;
+    task_console->tss.ds = 3 * 8;
+    task_console->tss.fs = 0;
+    task_console->tss.gs = 2 * 8;
+    task_console->tss.esp -= 8;
+    *((int *)(task_console->tss.esp + 4)) = (int)sht_cons;
+    task_run(task_console, 1, 5);
+
+    sheet_slide(shtctl, sht_cons, 32, 4);
+    sheet_updown(shtctl, sht_cons, 1);
+}
+
+void console_task(struct SHEET *sheet) {
+    struct FIFO8 fifo;
+    struct TIMER *timer;
+    struct TASK *task = task_now();
+
+    int i, fifobuf[128], cursor_x = 8, cursor_c = COL8_000000;
+    fifo8_init(&fifo, 128, fifobuf, task);
+    timer = timer_alloc();
+    timer_init(timer, &fifo, 1);
+    timer_settime(timer, 50);
+
+    for (;;) {
+        io_cli();
+        if (fifo8_status(&fifo) == 0) { 
+            io_sti();
+        } else {
+            i = fifo8_get(&fifo);
+            io_sti();
+            if (i <= 1) {
+                if (i != 0) {
+                    timer_init(timer, &fifo, 0);
+                    cursor_c = COL8_FFFFFF;
+                } else {
+                    timer_init(timer, &fifo, 1);
+                    cursor_c = COL8_000000;
+                }
+
+                timer_settime(timer, 50);
+                boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, 28,
+                         cursor_x + 7, 43);
+                sheet_refresh(shtctl, sheet, cursor_x, 28, cursor_x + 8, 44);
+            }
+        }
+    }
 }
