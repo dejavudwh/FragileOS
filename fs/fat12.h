@@ -10,3 +10,8 @@ struct FILEINFO {
 #define FILEINFO_SIZE 32
 #define FILE_CONTENT_HEAD_ADDR 0x15800
 #define DISK_SECTOR_SIZE 512
+
+struct Buffer {
+    unsigned char *pBuffer;
+    int length;
+};
