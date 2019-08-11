@@ -1,7 +1,9 @@
 
+#include "../fs/fat12.h"
 #include "../interrupt/timer.h"
 #include "../memory/mem_util.h"
 #include "../process/multi_task.h"
+#include "../util/string.h"
 #include "win_sheet.h"
 
 #define COL8_000000 0
@@ -916,6 +918,8 @@ void console_task(struct SHEET *sheet, int memtotal) {
     showString(shtctl, sheet, 8, 28, COL8_FFFFFF, ">");
 
     int pos = 0;
+    struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG);
+
     for (;;) {
         io_cli();
         if (fifo8_status(&task->fifo) == 0) {
@@ -945,8 +949,7 @@ void console_task(struct SHEET *sheet, int memtotal) {
                 set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
                 cmdline[cursor_x / 8 - 2] = 0;
                 cursor_y = cons_newline(cursor_y, sheet);
-                if (cmdline[0] == 'm' && cmdline[1] == 'e' &&
-                    cmdline[2] == 'm' && cmdline[3] == 0) {
+                if (strcmp(cmdline, "mem") == 1) {
                     char *s = intToHexStr(memtotal / (1024));
                     showString(shtctl, sheet, 16, cursor_y, COL8_FFFFFF,
                                "free ");
@@ -954,7 +957,46 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     showString(shtctl, sheet, 126, cursor_y, COL8_FFFFFF,
                                " KB");
                     cursor_y = cons_newline(cursor_y, sheet);
+                } else if (strcmp(cmdline, "cls")) {
+                    for (int y = 28; y < 28 + 128; y++)
+                        for (int x = 8; x < 8 + 240; x++) {
+                            sheet->buf[x + y * sheet->bxsize] = COL8_000000;
+                        }
+
+                    sheet_refresh(shtctl, sheet, 8, 28, 8 + 240, 28 + 128);
+                    cursor_y = 28;
+                    showString(shtctl, sheet, 8, 28, COL8_FFFFFF, ">");
+                } else if (strcmp(cmdline, "dir")) {
+                    while (finfo->name[0] != 0) {
+                        char s[13];
+                        s[12] = 0;
+                        int k;
+                        for (k = 0; k < 8; k++) {
+                            if (finfo->name[k] != 0) {
+                                s[k] = finfo->name[k];
+                            } else {
+                                break;
+                            }
+                        }
+
+                        int t = 0;
+                        s[k] = '.';
+                        k++;
+                        for (t = 0; t < 3; t++) {
+                            s[k] = finfo->ext[t];
+                            k++;
+                        }
+
+                        showString(shtctl, sheet, 16, cursor_y, COL8_FFFFFF, s);
+                        int offset = 16 + 8 * 15;
+                        char *p = intToHexStr(finfo->size);
+                        showString(shtctl, sheet, offset, cursor_y, COL8_FFFFFF,
+                                   p);
+                        cursor_y = cons_newline(cursor_y, sheet);
+                        finfo++;
+                    }
                 }
+
                 cursor_x = 16;
             } else if (i == 0x0e && cursor_x > 8) {
                 //退格键
@@ -966,7 +1008,7 @@ void console_task(struct SHEET *sheet, int memtotal) {
                 if (cursor_x < 240 && tfs != 0) {
                     set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
                     char buf[2] = {tfs, 0};
-                    cmdline[cursor_x/8 - 2] = tfs;
+                    cmdline[cursor_x / 8 - 2] = tfs;
                     showString(shtctl, sheet, cursor_x, cursor_y, COL8_FFFFFF,
                                buf);
                     cursor_x += 8;

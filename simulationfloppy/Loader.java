@@ -13,6 +13,33 @@ public class Loader {
 
     public void makeFloppy() {
         writeFileToFloppy("../kernel/kernel.bat", false, 1, 1);
+
+        FAT12System fileSys = new FAT12System(floppyDisk, 4, 18);
+    	FileHeader header = new FileHeader();
+    	header.setFileName("boot");
+    	header.setFileExt("exe");
+    	byte[] date = new byte[2];
+    	date[0] = 0x11;
+    	date[1] = 0x12;
+    	header.setFileTime(date);
+    	header.setFileDate(date);
+    	header.setFileSize(256);
+    	fileSys.addHeader(header);
+    	
+    	header = new FileHeader();
+    	header.setFileName("efg");
+    	header.setFileExt("sys");
+    	header.setFileSize(128);
+    	fileSys.addHeader(header);
+    	
+    	header = new FileHeader();
+    	header.setFileName("ijk");
+    	header.setFileExt("txt");
+    	header.setFileSize(64);
+    	fileSys.addHeader(header);
+    	
+    	fileSys.flashFileHeaders();
+
         floppyDisk.makeFloppy("../FragileOS.img");
     }
 

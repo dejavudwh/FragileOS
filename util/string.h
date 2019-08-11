@@ -1,0 +1,1 @@
+int strcmp(char *src, char *dest);
