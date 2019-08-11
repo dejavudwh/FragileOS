@@ -1,4 +1,4 @@
-#define ADR_DISKIMG 0x10E00
+#define ADR_DISKIMG 0x13400
 
 struct FILEINFO {
     unsigned char name[8], ext[3], type;
@@ -8,3 +8,5 @@ struct FILEINFO {
 };
 
 #define FILEINFO_SIZE 32
+#define FILE_CONTENT_HEAD_ADDR 0x15800
+#define DISK_SECTOR_SIZE 512

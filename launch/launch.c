@@ -986,7 +986,9 @@ void console_task(struct SHEET *sheet, int memtotal) {
                             s[k] = finfo->ext[t];
                             k++;
                         }
-
+                        
+                        // showString(shtctl, sht_back, 100, 200, COL8_FFFFFF, intToHexStr(k));
+                        s[k] = 0;
                         showString(shtctl, sheet, 16, cursor_y, COL8_FFFFFF, s);
                         int offset = 16 + 8 * 15;
                         char *p = intToHexStr(finfo->size);
@@ -995,9 +997,97 @@ void console_task(struct SHEET *sheet, int memtotal) {
                         cursor_y = cons_newline(cursor_y, sheet);
                         finfo++;
                     }
+                    cursor_x = 16;
+                } else if (cmdline[0] == 't' && cmdline[1] == 'y' &&
+                           cmdline[2] == 'p' && cmdline[3] == 'e') {
+                    char name[13];
+                    name[12] = 0;
+                    int p = 0;
+                    for (int x = 5; x < 17; x++) {
+                        if (cmdline[x] != 0) {
+                            name[p] = cmdline[x];
+                            p++;
+                        } else {
+                            break;
+                        }
+                    }
+                    name[p] = 0;
+
+                    finfo = (struct FILEINFO *)(ADR_DISKIMG);
+                    while (finfo->name[0] != 0) {
+                        char s[13];
+                        s[12] = 0;
+                        int k;
+                        for (k = 0; k < 8; k++) {
+                            if (finfo->name[k] != 0) {
+                                s[k] = finfo->name[k];
+                            } else {
+                                break;
+                            }
+                        }
+
+                        int t = 0;
+                        s[k] = '.';
+                        k++;
+                        for (t = 0; t < 3; t++) {
+                            s[k] = finfo->ext[t];
+                            k++;
+                        }
+
+                        if (strcmp(name, s) == 1) {
+                            char *p = FILE_CONTENT_HEAD_ADDR;
+                            p += finfo->clustno * DISK_SECTOR_SIZE;
+                            int sz = finfo->size;
+                            char c[2];
+                            int t = 0;
+                            cursor_x = 16;
+                            for (t = 0; t < sz; t++) {
+                                c[0] = p[t];
+                                c[1] = 0;
+                                if (c[0] == 0x09) {
+                                    // handle tab key
+                                    for (;;) {
+                                        showString(shtctl, sheet, cursor_x,
+                                                   cursor_y, COL8_FFFFFF, " ");
+                                        cursor_x += 8;
+
+                                        if (cursor_x == 8 + 240) {
+                                            cursor_x = 8;
+                                            cursor_y =
+                                                cons_newline(cursor_y, sheet);
+                                        }
+
+                                        if ((cursor_x - 8) & 0x1f == 0) {
+                                            break;
+                                        }
+                                    }
+                                } else if (c[0] == 0x0a) {
+                                    // handle return
+                                    cursor_x = 8;
+                                    cursor_y = cons_newline(cursor_y, sheet);
+                                } else if (c[0] == 0x0d) {
+                                    // do nothing
+                                } else {
+                                    showString(shtctl, sheet, cursor_x,
+                                               cursor_y, COL8_FFFFFF, c);
+                                    cursor_x += 8;
+                                    if (cursor_x == 8 + 240) {
+                                        cursor_x = 16;
+                                        cursor_y =
+                                            cons_newline(cursor_y, sheet);
+                                    }
+                                }
+                            }
+                            break;
+                        }
+
+                        finfo++;
+                    }
+
+                    cursor_y = cons_newline(cursor_y, sheet);
+                    cursor_x = 16;
                 }
 
-                cursor_x = 16;
             } else if (i == 0x0e && cursor_x > 8) {
                 //退格键
                 set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);

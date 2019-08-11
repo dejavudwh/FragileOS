@@ -10,6 +10,8 @@ import java.nio.ByteBuffer;
 */
 public class FileHeader {
     private byte[] header = new byte[32];
+    private byte[] content = null;
+    private int fileSize = 0;
 
     public void setFileName(String s) {
         int len = s.length() > 8 ? 8 : s.length();
@@ -51,7 +53,20 @@ public class FileHeader {
         }
     }
 
+    public int getFileSize() {
+    	return fileSize;
+    }
+
     public byte[] getHeaderBuffer() {
         return header;
+    }
+
+    public void setFileContent(byte[] content) {
+    	this.content = content;
+    	setFileSize(content.length);
+    }
+    
+    public byte[] getFileBuffer() {
+    	return content;
     }
 }
