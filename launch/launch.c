@@ -183,7 +183,7 @@ int cons_newline(int cursor_y, struct SHEET *sheet);
 void file_loadfile(char *fileName, struct Buffer *pBuffer);
 
 void launch(void) {
-    initBootInfo(&bootInfo); 
+    initBootInfo(&bootInfo);
 
     char *vram = bootInfo.vgaRam;
     xsize = bootInfo.screenX, ysize = bootInfo.screenY;
@@ -1250,4 +1250,13 @@ void file_loadfile(char *name, struct Buffer *buffer) {
     }
 
     memman_free(memman, s, 13);
+}
+
+void kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
+                int eax) {
+    if (edx == 1) {
+        cons_putchar(eax & 0xff, 1);
+    } else if (edx == 2) {
+        cons_putstr((char *)(buffer.pBuffer + ebx));
+    }
 }

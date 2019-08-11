@@ -26,8 +26,8 @@ public class Loader {
     	header.setFileDate(date);
     	String s = "abc.exe";
     	
-    	byte[] bbuf = new byte[64];
-    	File file = new File("hlt.bat");
+    	byte[] bbuf = new byte[256];
+    	File file = new File("../api/hlt.bat");
     	InputStream in = null;
     	try {
     		in = new FileInputStream(file);

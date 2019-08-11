@@ -12,14 +12,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class LinkAssembly {
+	String fileName = "";
     private BufferedReader fileReader = null;
     StringBuffer fileBuffer = null;
 	HashMap<String, ArrayList<String>> funcMap = new HashMap<>();
 
-    public LinkAssembly() {
+    public LinkAssembly(String fileName) {
+		this.fileName = fileName;
         try {
-			fileReader = new BufferedReader(new FileReader("../kernel/ckernel.asm"));
-			File f = new File("../kernel/ckernel.asm");
+			fileReader = new BufferedReader(new FileReader(fileName));
+			File f = new File(fileName);
 			fileBuffer = new StringBuffer((int)f.length()); 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -69,7 +71,7 @@ public class LinkAssembly {
 					curLabel = label;
 				}
 
-				if (line.contains("global") || line.contains("extern") || line.contains("section") || line.contains(".bss:") && !line.contains(".rdata")) {
+				if (line.contains(".text") || line.contains("global") || line.contains("extern") || line.contains("section") || line.contains(".bss:") && !line.contains(".rdata")) {
 					continue;
 				}
 				
@@ -94,7 +96,7 @@ public class LinkAssembly {
 			}
 			
 			fileReader.close();
-			BufferedWriter bw = new BufferedWriter(new FileWriter("../kernel/ckernel.asm"));
+			BufferedWriter bw = new BufferedWriter(new FileWriter(fileName));
 			bw.write(fileBuffer.toString());
 			bw.close();
 		} catch (IOException e) {
@@ -103,7 +105,14 @@ public class LinkAssembly {
     }
 
     public static void main(String[] args) {
-        LinkAssembly la = new LinkAssembly();
+		String fileName = "";
+		if (args[0].equals("ckernel.asm")) {
+			fileName = "../kernel/ckernel.asm";
+		} else if (args[0].equals("app.asm")){
+			fileName = "../api/app.asm";
+		}
+		System.out.println(args[0] +  " " +fileName);
+        LinkAssembly la = new LinkAssembly(fileName);
         la.process();
     }
 }
