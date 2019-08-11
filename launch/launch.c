@@ -147,7 +147,7 @@ static struct SHTCTL *shtctl;
 static struct SHEET *sht_back, *sht_mouse;
 
 void task_b_main(struct SHEET *sht_win_b);
-void console_task(struct SHEET *sheet);
+void console_task(struct SHEET *sheet, int memtotal);
 struct SHEET *launch_console();
 
 static int task_b = 0;
@@ -252,15 +252,7 @@ void launch(void) {
             io_sti();
             data = fifo8_get(&keyinfo);
 
-            if (data == 0x1C) {
-                showMemoryInfo(shtctl, sht_back, memDesc + count, buf_back,
-                               count, xsize, COL8_FFFFFF);
-                count = (count + 1);
-                if (count > memCnt) {
-                    count = 0;
-                }
-
-            } else if (data == 0x0f) {
+            if (data == 0x0f) {
                 int msg = -1;
 
                 if (key_to == 0) {
@@ -898,6 +890,7 @@ struct SHEET *launch_console() {
     task_console->tss.gs = 2 * 8;
     task_console->tss.esp -= 8;
     *((int *)(task_console->tss.esp + 4)) = (int)sht_cons;
+    *((int *)(task_console->tss.esp + 8)) = memman_total(memman);
     task_run(task_console, 1, 5);
 
     sheet_slide(shtctl, sht_cons, 32, 4);
@@ -908,11 +901,12 @@ struct SHEET *launch_console() {
     return sht_cons;
 }
 
-void console_task(struct SHEET *sheet) {
+void console_task(struct SHEET *sheet, int memtotal) {
     struct TIMER *timer;
     struct TASK *task = task_now();
 
     int i, fifobuf[128], cursor_x = 16, cursor_y = 28, cursor_c = COL8_000000;
+    char cmdline[30];
 
     fifo8_init(&task->fifo, 128, fifobuf, task);
     timer = timer_alloc();
@@ -946,7 +940,24 @@ void console_task(struct SHEET *sheet) {
                 set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
                 cursor_c = -1;
                 task_run(task_main, -1, 0);
+            } else if (i == 0x1c) {
+                //回车键
+                set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
+                cmdline[cursor_x / 8 - 2] = 0;
+                cursor_y = cons_newline(cursor_y, sheet);
+                if (cmdline[0] == 'm' && cmdline[1] == 'e' &&
+                    cmdline[2] == 'm' && cmdline[3] == 0) {
+                    char *s = intToHexStr(memtotal / (1024));
+                    showString(shtctl, sheet, 16, cursor_y, COL8_FFFFFF,
+                               "free ");
+                    showString(shtctl, sheet, 52, cursor_y, COL8_FFFFFF, s);
+                    showString(shtctl, sheet, 126, cursor_y, COL8_FFFFFF,
+                               " KB");
+                    cursor_y = cons_newline(cursor_y, sheet);
+                }
+                cursor_x = 16;
             } else if (i == 0x0e && cursor_x > 8) {
+                //退格键
                 set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
                 cursor_x -= 8;
                 set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
@@ -955,6 +966,7 @@ void console_task(struct SHEET *sheet) {
                 if (cursor_x < 240 && tfs != 0) {
                     set_cursor(shtctl, sheet, cursor_x, cursor_y, COL8_000000);
                     char buf[2] = {tfs, 0};
+                    cmdline[cursor_x/8 - 2] = tfs;
                     showString(shtctl, sheet, cursor_x, cursor_y, COL8_FFFFFF,
                                buf);
                     cursor_x += 8;
@@ -1037,4 +1049,30 @@ void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cursor_x,
              cursor_x + 7, cursor_y + 15);
     sheet_refresh(shtctl, sheet, cursor_x, cursor_y, cursor_x + 8,
                   cursor_y + 16);
+}
+
+int cons_newline(int cursor_y, struct SHEET *sheet) {
+    int x, y;
+
+    if (cursor_y < 28 + 112) {
+        cursor_y += 16;
+    } else {
+        for (y = 28; y < 28 + 112; y++) {
+            for (x = 8; x < 8 + 240; x++) {
+                sheet->buf[x + y * sheet->bxsize] =
+                    sheet->buf[x + (y + 16) * sheet->bxsize];
+            }
+        }
+
+        for (y = 28 + 112; y < 28 + 128; y++) {
+            for (x = 8; x < 8 + 240; x++) {
+                sheet->buf[x + y * sheet->bxsize] = COL8_000000;
+            }
+        }
+
+        sheet_refresh(shtctl, sheet, 8, 28, 8 + 240, 28 + 128);
+    }
+
+    showString(shtctl, sheet, 8, cursor_y, COL8_FFFFFF, ">");
+    return cursor_y;
 }
