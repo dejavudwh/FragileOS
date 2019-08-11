@@ -25,10 +25,24 @@ public class Loader {
     	header.setFileTime(date);
     	header.setFileDate(date);
     	String s = "abc.exe";
-    	int[] buf = new int[]{0xfa, 0xeb, 0xfe, 0x0a};
-    	byte[] bbuf = new byte[9];
-    	for (int i = 0; i < buf.length; i++) {
-    		bbuf[i] = (byte) (buf[i] & 0x0ff);
+    	
+    	byte[] bbuf = new byte[64];
+    	File file = new File("hlt.bat");
+    	InputStream in = null;
+    	try {
+    		in = new FileInputStream(file);
+    		long len = file.length();
+    		
+    		int count = 0;
+    		while (count < file.length()) {
+    			bbuf[count] = (byte) in.read();
+    			count++;
+    		}
+    		
+    		in.close();
+    	}catch(IOException e) {
+    		e.printStackTrace();
+    		return;
     	}
     	
     	header.setFileContent(bbuf);

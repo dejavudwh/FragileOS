@@ -38,21 +38,24 @@ SelectorFont      equ   LABEL_DESC_FONT - LABEL_GDT
 
 LABEL_IDT:
 %rep  32
-    Gate  SelectorCode32, SpuriousHandler,  0,  DA_386IGate
+    Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
 %endrep
 
 .020h:
-    Gate  SelectorCode32, timerHandler,     0,  DA_386IGate
+    Gate  SelectorCode32, timerHandler,        0,  DA_386IGate
 
 .021h:
-    Gate  SelectorCode32, KeyBoardHandler,  0,  DA_386IGate
+    Gate  SelectorCode32, KeyBoardHandler,     0,  DA_386IGate
 
 %rep  10
-    Gate  SelectorCode32, SpuriousHandler,  0,  DA_386IGate
+    Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
 %endrep
 
 .2CH:                                       ; IRO4 so 28h + 4 = 2ch
-    Gate  SelectorCode32, mouseHandler,      0,  DA_386IGate
+    Gate  SelectorCode32, mouseHandler,        0,  DA_386IGate
+
+.2DH:
+    Gate SelectorCode32, AsmConsPutCharHandler,0, DA_386IGate
 
 IdtLen  equ $ - LABEL_IDT
 IdtPtr  dw  IdtLen - 1
@@ -379,11 +382,25 @@ _taskswitch9:
     ret
 
 _farjmp:
-    jmp FAR [esp + 4]                       ; far 跨描述符的跳转 esp+4放入eip中
-    ret                                     ; 会自动往后读两字节作为描述符的下标 cs
+    mov  eax, [esp]                           
+    push 1*8                                 ; 把下一条语句的地址存入特定地址
+    push eax
+    jmp  FAR [esp+12]                        ; far 跨描述符的跳转 esp+4放入eip中
+    ret                                      ; 会自动往后读两字节作为描述符的下标 cs
 
-SegCode32Len   equ  $ - LABEL_SEG_CODE32
+_asm_cons_putchar:
+AsmConsPutCharHandler equ _asm_cons_putchar - $$
+    pushad
 
+    push  1 
+    and   eax, 0xff
+    push  eax
+    call  _cons_putchar
+    add   esp, 8
+    
+    popad
+    
+    iretd                   ; cs 19*8 ip eax
 
 [SECTION .data]
 ALIGN 32
