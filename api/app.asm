@@ -1,5 +1,5 @@
 ; Disassembly of file: app.o
-; Sun Aug 11 23:59:40 2019
+; Mon Aug 12 10:16:47 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386
@@ -9,24 +9,29 @@
 
 
 
-
 __main:
         push    ebp                                     ; 0000 _ 55
         mov     ebp, esp                                ; 0001 _ 89. E5
-        sub     esp, 24                                 ; 0003 _ 83. EC, 18
-        mov     dword [esp], 72                         ; 0006 _ C7. 04 24, 00000048
-        call    _api_putchar                            ; 000D _ E8, 00000000(rel)
-        mov     dword [esp], 44                         ; 0012 _ C7. 04 24, 0000002C
-        call    _api_putchar                            ; 0019 _ E8, 00000000(rel)
-        mov     dword [esp], 87                         ; 001E _ C7. 04 24, 00000057
-        call    _api_putchar                            ; 0025 _ E8, 00000000(rel)
-        nop                                             ; 002A _ 90
-        leave                                           ; 002B _ C9
-        ret                                             ; 002C _ C3
-
-        nop                                             ; 002D _ 90
+        sub     esp, 16                                 ; 0003 _ 83. EC, 10
+        mov     dword [ebp-4H], 256                     ; 0006 _ C7. 45, FC, 00000100
+        mov     eax, dword [ebp-4H]                     ; 000D _ 8B. 45, FC
+        mov     byte [eax], 97                          ; 0010 _ C6. 00, 61
+        mov     eax, dword [ebp-4H]                     ; 0013 _ 8B. 45, FC
+        add     eax, 1                                  ; 0016 _ 83. C0, 01
+        mov     byte [eax], 112                         ; 0019 _ C6. 00, 70
+        mov     eax, dword [ebp-4H]                     ; 001C _ 8B. 45, FC
+        add     eax, 2                                  ; 001F _ 83. C0, 02
+        mov     byte [eax], 112                         ; 0022 _ C6. 00, 70
+        mov     eax, dword [ebp-4H]                     ; 0025 _ 8B. 45, FC
+        add     eax, 3                                  ; 0028 _ 83. C0, 03
+        mov     byte [eax], 0                           ; 002B _ C6. 00, 00
         nop                                             ; 002E _ 90
-        nop                                             ; 002F _ 90
+        leave                                           ; 002F _ C9
+        ret                                             ; 0030 _ C3
+
+        nop                                             ; 0031 _ 90
+        nop                                             ; 0032 _ 90
+        nop                                             ; 0033 _ 90
 
 
 

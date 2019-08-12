@@ -1,8 +1,10 @@
-void api_putchar(int c);
+// void api_putchar(int c);
 
 void _main() {
-    api_putchar('H');
-    api_putchar(',');
-    api_putchar('W');
+    char *p = (char *)(0x100);
+    *p = 'a';
+    *(p + 1) = 'p';
+    *(p + 2) = 'p';
+    *(p + 3) = 0;
     return;
 }

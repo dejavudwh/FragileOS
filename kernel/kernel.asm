@@ -51,11 +51,11 @@ LABEL_IDT:
     Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
 %endrep
 
-.2CH:                                       ; IRO4 so 28h + 4 = 2ch
+.2CH:                                          ; IRO4 so 28h + 4 = 2ch
     Gate  SelectorCode32, mouseHandler,        0,  DA_386IGate
 
 .2DH:
-    Gate SelectorCode32, AsmConsPutCharHandler,0, DA_386IGate
+    Gate SelectorCode32, AsmConsPutCharHandler,0,  DA_386IGate
 
 IdtLen  equ $ - LABEL_IDT
 IdtPtr  dw  IdtLen - 1
@@ -398,7 +398,34 @@ AsmConsPutCharHandler equ _asm_cons_putchar - $$
     
     popad
     
-    iretd                   ; cs 19*8 ip eax
+    iretd                                   ; cs 19*8 ip eax
+
+_start_app:                                 ;void start_app(int eip, int cs,int esp, int ds)
+    cli
+    pushad
+    mov  eax, [esp+36]                      ; eip
+    mov  ecx, [esp+40]                      ; cs
+    mov  edx, [esp+44]                      ; esp
+    mov  ebx, [esp+48]                      ; ds
+
+    mov  [0xfe4], esp                       ; 暂时把应该返回的栈顶指针写死
+    mov  ds,  bx
+    mov  ss,  bx
+    mov  esp, edx
+
+    push  ecx
+    push  eax
+    call  far [esp]
+
+    mov   ax, SelectorVram
+    mov   ds,  ax
+    mov   esp, [0xfe4]
+
+    mov   ax, SelectorStack
+    mov   ss, ax 
+    
+    popad
+    ret
 
 [SECTION .data]
 ALIGN 32

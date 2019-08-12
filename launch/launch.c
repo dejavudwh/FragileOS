@@ -601,9 +601,17 @@ void cmd_hlt() {
     file_loadfile("abc.exe", &buffer);
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
-    set_segmdesc(gdt + 19, 0xfffff, buffer.pBuffer, 0x4098);
-    farjmp(0, 19 * 8);
+    set_segmdesc(gdt + 11, 0xfffff, buffer.pBuffer, 0x4098);
+    //把app和内核部分隔离开
+    char *q = memman_alloc_4k(memman, 64 * 1024);
+    set_segmdesc(gdt + 12, 64 * 1024 - 1, q, 0x4092);
+    start_app(0, 11 * 8, 64 * 1024, 12 * 8);
+
+    char *pApp = (char *)(q + 0x100);
+    showString(shtctl, sht_back, 0, 179, COL8_FFFFFF, pApp);
+
     memman_free_4k(memman, buffer.pBuffer, buffer.length);
+    memman_free_4k(memman, q, 64 * 1024);
 }
 
 void console_task(struct SHEET *sheet, int memtotal) {
