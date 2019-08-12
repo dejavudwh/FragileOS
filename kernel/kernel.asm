@@ -37,7 +37,14 @@ SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
 SelectorFont      equ   LABEL_DESC_FONT - LABEL_GDT
 
 LABEL_IDT:
-%rep  32
+%rep  13
+    Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
+%endrep
+
+.0Dh:
+    Gate SelectorCode32,  exceptionHandler,     0,  DA_386IGate
+
+%rep  18
     Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
 %endrep
 
@@ -297,6 +304,32 @@ timerHandler equ _timerHandler - $$
     pop  ds
     pop  es
     iretd
+
+_exceptionHandler:
+exceptionHandler equ _exceptionHandler - $$
+    cli
+                                                ;把内存段切换到内核
+    mov  ax, SelectorVram
+    mov  ds, ax
+    mov  es, ax 
+    mov  ax, SelectorStack                      ;切换到内核堆栈段
+    mov  ss, ax
+    
+    mov  ecx, [0xfe4]                           ;获取内核堆栈指针
+    add  ecx, -8
+    mov  [ecx+4], ss                            ;保存中断时的堆栈段
+    mov  [ecx], esp                             ;保存中断时堆栈指针
+
+    mov  esp, ecx                               ;切换内核指针
+
+    call _intHandlerForException
+    
+.kill:  ;通过把CPU交给内核的方式直接杀掉应用程序
+     
+     mov  esp, [0xfe4]
+     sti
+     popad
+     ret                                        ;返回的正好是start_app的下一条语句
 
 _get_font_data:
     mov ax, SelectorFont

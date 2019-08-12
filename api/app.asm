@@ -1,5 +1,5 @@
 ; Disassembly of file: app.o
-; Mon Aug 12 11:01:31 2019
+; Mon Aug 12 11:29:39 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386

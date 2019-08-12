@@ -1268,3 +1268,14 @@ void kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
         cons_putstr((char *)(buffer.pBuffer + ebx));
     }
 }
+
+void intHandlerForException(int *esp) {
+    g_Console.cur_x = 8;
+    cons_putstr("INT 0D ");
+    g_Console.cur_x = 8;
+    g_Console.cur_y += 16;
+    cons_putstr("General Protected Exception");
+    g_Console.cur_y += 16;
+    g_Console.cur_x = 8;
+    return 1;
+}

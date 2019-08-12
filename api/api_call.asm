@@ -1,6 +1,7 @@
 [SECTION .s32]
 BITS 32
 call __main
+pop eax
 retf
 
 _api_putchar:
