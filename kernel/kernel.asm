@@ -254,9 +254,13 @@ mouseHandler equ _mouseHandler - $$
 
 _timerHandler:
 timerHandler equ _timerHandler - $$
-     pushad
+     push es                        
      push ds
-     push es
+     pushad
+     mov  ax, ss
+     cmp  ax, SelectorStack                     ; 判断是否在内核段
+     jne  .from_app
+
      push fs
      push gs
 
@@ -264,12 +268,35 @@ timerHandler equ _timerHandler - $$
 
      pop gs
      pop fs
-     pop es
-     pop ds
      popad
+     pop ds
+     pop es
+     
 
-    
      iretd
+
+.from_app:                                          ; 把内存段切换到内核
+    mov  ax, SelectorVram
+    mov  ds, ax
+    mov  es, ax 
+    mov  ecx, [0xfe4]                               ; 获取内核堆栈指针
+    add  ecx, -8
+    mov  [ecx+4], ss                                ; 保存中断时的堆栈段
+    mov  [ecx], esp                                 ; 保存中断时堆栈指针
+
+    mov  ax, SelectorStack                          ; 切换到内核堆栈段
+    mov  ss, ax
+    mov  esp, ecx                                   ; 切换内核指针
+    call _intHandlerForTimer
+
+    pop  ecx
+    pop  eax
+    mov  ss, ax
+    mov  esp, ecx
+    popad
+    pop  ds
+    pop  es
+    iretd
 
 _get_font_data:
     mov ax, SelectorFont
@@ -390,13 +417,58 @@ _farjmp:
 
 _asm_cons_putchar:
 AsmConsPutCharHandler equ _asm_cons_putchar - $$
+    push ds
+    push es
     pushad
+                                            ;以上代码还运行在应用程序的环境中
 
-    pushad
-    call _kernel_api
-    add esp, 32
+                                            ;把内存段切换到内核
+    mov  ax, SelectorVram
+    mov  ds, ax
+    mov  es, ax 
+    mov  ecx, [0xfe4]                       ;获取内核堆栈指针
+    add  ecx, -40
+    mov  [ecx+32], esp                      ;保存应用程序堆栈指针
+    mov  [ecx+36], ss
+
+                                            ;将pushad 压入到堆栈的值复制到系统堆栈，也就是应用程序调用API时传入的参数
+    mov  edx, [esp]
+    mov  ebx, [esp+4]
+    mov  [ecx], edx
+    mov  [ecx+4], ebx
     
+    mov  edx, [esp+8]
+    mov  ebx, [esp+12]
+    mov  [ecx+8], edx
+    mov  [ecx+12], ebx
+
+    mov  edx, [esp+16]
+    mov  ebx, [esp+20]
+    mov  [ecx+16], edx
+    mov  [ecx+20], ebx
+
+    mov  edx, [esp+24]
+    mov  ebx, [esp+28]
+    mov  [ecx+24], edx
+    mov  [ecx+28], ebx
+
+                                                ;把堆栈段切换到内核
+    mov  ax, SelectorStack
+    mov  ss, ax
+    mov  esp, ecx
+    sti
+
+    call _kernel_api
+
+                                                ;执行完内核代码后，把内存段和堆栈段重新切回到应用程序
+    mov  ecx, [esp+32]                          ;恢复应用程序的堆栈指针esp
+    mov  eax, [esp+36]                          ;恢复应用程序的堆栈段
+    cli
+    mov  ss, ax
+    mov  esp, ecx
     popad
+    pop  es
+    pop  ds
     
     iretd                                   ; cs 19*8 ip eax
 
@@ -412,6 +484,8 @@ _start_app:                                 ;void start_app(int eip, int cs,int 
     mov  ds,  bx
     mov  ss,  bx
     mov  esp, edx
+
+    sti
 
     push  ecx
     push  eax

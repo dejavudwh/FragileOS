@@ -1,5 +1,5 @@
 ; Disassembly of file: ckernel.o
-; Mon Aug 12 10:16:45 2019
+; Mon Aug 12 11:01:29 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: Pentium Pro
