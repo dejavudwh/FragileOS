@@ -154,8 +154,10 @@ void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
 static int mx = 0, my = 0;
 static int xsize = 0, ysize = 0;
 static unsigned char *buf_back, buf_mouse[256];
+
 #define COLOR_INVISIBLE 99
 #define KEY_RETURN 0x1C
+#define KEY_CONTROL 0x1D
 
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 static struct SHEET *shtMsgBox;
@@ -181,6 +183,7 @@ int isSpecialKey(int data);
 int cons_newline(int cursor_y, struct SHEET *sheet);
 
 void file_loadfile(char *fileName, struct Buffer *pBuffer);
+void kill_process();
 
 void launch(void) {
     initBootInfo(&bootInfo);
@@ -262,7 +265,7 @@ void launch(void) {
     int stop_task_A = 0;
     int key_to = 0;
     int couser_c = COL8_000000;
-
+    int p = 0;
     for (;;) {
         io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
@@ -272,6 +275,16 @@ void launch(void) {
         } else if (fifo8_status(&keyinfo) != 0) {
             io_sti();
             data = fifo8_get(&keyinfo);
+
+            transferScanCode(data);
+            if (data == KEY_CONTROL && key_shift != 0 &&
+                task_cons->tss.ss0 != 0) {
+                cons_putstr("kill process");
+                io_cli();
+                int addr_code32 = get_addr_code32();
+                task_cons->tss.eip = (int)kill_process - addr_code32;
+                io_sti();
+            }
 
             if (data == 0x0f) {
                 int msg = -1;
@@ -604,13 +617,16 @@ void cmd_hlt() {
     set_segmdesc(gdt + 11, 0xfffff, (int)buffer.pBuffer, 0x409a + 0x60);
     // new memory
     char *q = (char *)memman_alloc_4k(memman, 64 * 1024);
+    //  char *q = (char*) memman_alloc(memman, 1024);
     set_segmdesc(gdt + 12, 64 * 1024 - 1, (int)q, 0x4092 + 0x60);
+    // set_segmdesc(gdt+12, 1024 - 1,(int) q ,0x4092 + 0x60);
     struct TASK *task = task_now();
-    // task->tss.esp0 = 0;
+    task->tss.esp0 = 0;
     start_app(0, 11 * 8, 64 * 1024, 12 * 8, &(task->tss.esp0));
-
+    // start_app(0, 11*8, 1024, 12*8, &(task->tss.esp0));
     memman_free_4k(memman, (unsigned int)buffer.pBuffer, buffer.length);
     memman_free_4k(memman, (unsigned int)q, 64 * 1024);
+    // memman_free(memman, (unsigned int)q, 1024);
 }
 
 void console_task(struct SHEET *sheet, int memtotal) {
@@ -1274,7 +1290,7 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
     return 0;
 }
 
-int* intHandlerForException(int *esp) {
+int *intHandlerForException(int *esp) {
     g_Console.cur_x = 8;
     cons_putstr("INT 0D ");
     g_Console.cur_x = 8;
@@ -1286,4 +1302,27 @@ int* intHandlerForException(int *esp) {
     struct TASK *task = task_now();
 
     return &(task->tss.esp0);
+}
+
+int *intHandlerForStackOverFlow(int *esp) {
+    g_Console.cur_x = 8;
+    cons_putstr("INT OC");
+    g_Console.cur_x = 8;
+    g_Console.cur_y += 16;
+    cons_putstr("Stack Exception");
+    g_Console.cur_x = 8;
+    g_Console.cur_y += 16;
+    char *p = intToHexStr(esp[11]);
+    cons_putstr("EIP = ");
+    cons_putstr(p);
+    g_Console.cur_x = 8;
+    g_Console.cur_y += 16;
+    struct TASK *task = task_now();
+    return &(task->tss.esp0);
+}
+
+void kill_process() {
+    cons_newline(g_Console.cur_y, g_Console.sht);
+    g_Console.cur_y += 16;
+    asm_end_app(&(task_cons->tss.esp0));
 }

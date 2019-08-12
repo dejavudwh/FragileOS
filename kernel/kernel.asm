@@ -42,9 +42,12 @@ SelectorVram      equ   LABEL_DESC_VRAM   -  LABEL_GDT
 SelectorFont      equ   LABEL_DESC_FONT - LABEL_GDT
 
 LABEL_IDT:
-%rep  13
+%rep  12
     Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
 %endrep
+
+.0CH:
+    Gate SelectorCode32,  stackOverFlowHandler,0,  DA_386IGate
 
 .0Dh:
     Gate SelectorCode32,  exceptionHandler,    0,  DA_386IGate
@@ -234,6 +237,11 @@ KeyBoardHandler equ _KeyBoardHandler - $$
      push fs
      push gs
 
+     mov  ax, SelectorVram
+     mov  ds, ax
+     mov  es, ax
+     mov  gs, ax
+
      call _intHandlerFromC
 
      pop gs
@@ -301,6 +309,23 @@ exceptionHandler equ _exceptionHandler - $$
     
     jmp near end_app
     
+_stackOverFlowHandler:
+stackOverFlowHandler equ _stackOverFlowHandler - $$
+    sti
+    push es
+    push ds
+    pushad
+    mov eax, esp
+    push eax
+
+    mov  ax, SelectorVram                             ;把内存段切换到内核
+    mov  ds, ax
+    mov  es, ax 
+
+    call _intHandlerForStackOverFlow
+    
+    jmp near end_app
+
 ; .kill:  ;通过把CPU交给内核的方式直接杀掉应用程序
      
 ;      mov  esp, [0xfe4]
@@ -473,6 +498,13 @@ _start_app:                                 ;void start_app(int eip, int cs,int 
     push ecx
     push eax
     retf
+
+_asm_end_app:
+    mov eax, [esp + 4]
+    mov esp, [eax]
+    mov DWORD [eax+4], 0
+    popad
+    ret
 
 SegCode32Len   equ  $ - LABEL_SEG_CODE32
 

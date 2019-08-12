@@ -86,6 +86,7 @@ struct TASK *task_alloc() {
             task->tss.ds = 0;
             task->tss.fs = 0;
             task->tss.gs = 0;
+            task->tss.ss0 = 0;
             task->tss.ldtr = 0;
             task->tss.iomap = 0x40000000;
             return task;

@@ -1,5 +1,5 @@
 ; Disassembly of file: app.o
-; Mon Aug 12 21:27:46 2019
+; Mon Aug 12 23:18:17 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386
@@ -9,20 +9,11 @@
 
 
 
-
 __main:
-        push    ebp                                     ; 0000 _ 55
-        mov     ebp, esp                                ; 0001 _ 89. E5
-        sub     esp, 24                                 ; 0003 _ 83. EC, 18
-        mov     dword [esp], 65                         ; 0006 _ C7. 04 24, 00000041
-        call    _api_putchar                            ; 000D _ E8, 00000000(rel)
-        nop                                             ; 0012 _ 90
-        leave                                           ; 0013 _ C9
-        ret                                             ; 0014 _ C3
+        jmp     __main                                  ; 0000 _ EB, FE
 
-        nop                                             ; 0015 _ 90
-        nop                                             ; 0016 _ 90
-        nop                                             ; 0017 _ 90
+        nop                                             ; 0002 _ 90
+        nop                                             ; 0003 _ 90
 
 
 
