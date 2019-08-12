@@ -4,7 +4,12 @@ org   8000h                                 ; 指示加载到8000，和前面的
 
 VRAM_ADDRESS  equ  0x000a0000               ; 显存地址
 
-jmp   LABEL_BEGIN                           ; 跳到执行的地儿
+jmp near LABEL_BEGIN                        ; 跳到执行的地儿
+
+LABEL_SYSTEM_FONT:
+%include "fonts.inc"
+
+SystemFontLength equ $ - LABEL_SYSTEM_FONT
 
 [SECTION .gdt]                              ; 利用宏定义定义gdt
                                             ; 段基址          段界限              属性
@@ -42,7 +47,7 @@ LABEL_IDT:
 %endrep
 
 .0Dh:
-    Gate SelectorCode32,  exceptionHandler,     0,  DA_386IGate
+    Gate SelectorCode32,  exceptionHandler,    0,  DA_386IGate
 
 %rep  18
     Gate  SelectorCode32, SpuriousHandler,     0,  DA_386IGate
@@ -62,7 +67,7 @@ LABEL_IDT:
     Gate  SelectorCode32, mouseHandler,        0,  DA_386IGate
 
 .2DH:
-    Gate SelectorCode32, AsmConsPutCharHandler,0,  DA_386IGate
+    Gate SelectorCode32, AsmConsPutCharHandler,0,  DA_386IGate + 0x60
 
 IdtLen  equ $ - LABEL_IDT
 IdtPtr  dw  IdtLen - 1
@@ -204,7 +209,7 @@ io_delay:
 LABEL_SEG_CODE32:
      mov  ax,  SelectorStack                ; 初始化堆栈
      mov  ss,  ax
-     mov  esp, 2048
+     mov  esp, 02000h
 
      mov  ax,  SelectorVram
      mov  ds,  ax
@@ -261,75 +266,47 @@ mouseHandler equ _mouseHandler - $$
 
 _timerHandler:
 timerHandler equ _timerHandler - $$
-     push es                        
-     push ds
-     pushad
-     mov  ax, ss
-     cmp  ax, SelectorStack                     ; 判断是否在内核段
-     jne  .from_app
+    push es
+    push ds
+    pushad
+    mov  eax, esp
+    push eax
 
-     push fs
-     push gs
-
-     call _intHandlerForTimer
-
-     pop gs
-     pop fs
-     popad
-     pop ds
-     pop es
-     
-
-     iretd
-
-.from_app:                                          ; 把内存段切换到内核
     mov  ax, SelectorVram
     mov  ds, ax
-    mov  es, ax 
-    mov  ecx, [0xfe4]                               ; 获取内核堆栈指针
-    add  ecx, -8
-    mov  [ecx+4], ss                                ; 保存中断时的堆栈段
-    mov  [ecx], esp                                 ; 保存中断时堆栈指针
+    mov  es, ax
 
-    mov  ax, SelectorStack                          ; 切换到内核堆栈段
-    mov  ss, ax
-    mov  esp, ecx                                   ; 切换内核指针
     call _intHandlerForTimer
-
-    pop  ecx
-    pop  eax
-    mov  ss, ax
-    mov  esp, ecx
+    
+    pop eax
     popad
-    pop  ds
-    pop  es
+    pop ds
+    pop es
     iretd
 
 _exceptionHandler:
 exceptionHandler equ _exceptionHandler - $$
-    cli
-                                                ;把内存段切换到内核
-    mov  ax, SelectorVram
+    sti
+    push es
+    push ds
+    pushad
+    mov eax, esp
+    push eax
+   
+    mov  ax, SelectorVram                            ; 把内存段切换到内核
     mov  ds, ax
     mov  es, ax 
-    mov  ax, SelectorStack                      ;切换到内核堆栈段
-    mov  ss, ax
-    
-    mov  ecx, [0xfe4]                           ;获取内核堆栈指针
-    add  ecx, -8
-    mov  [ecx+4], ss                            ;保存中断时的堆栈段
-    mov  [ecx], esp                             ;保存中断时堆栈指针
-
-    mov  esp, ecx                               ;切换内核指针
 
     call _intHandlerForException
     
-.kill:  ;通过把CPU交给内核的方式直接杀掉应用程序
+    jmp near end_app
+    
+; .kill:  ;通过把CPU交给内核的方式直接杀掉应用程序
      
-     mov  esp, [0xfe4]
-     sti
-     popad
-     ret                                        ;返回的正好是start_app的下一条语句
+;      mov  esp, [0xfe4]
+;      sti
+;      popad
+;      ret                                        ;返回的正好是start_app的下一条语句
 
 _get_font_data:
     mov ax, SelectorFont
@@ -453,86 +430,51 @@ AsmConsPutCharHandler equ _asm_cons_putchar - $$
     push ds
     push es
     pushad
-                                            ;以上代码还运行在应用程序的环境中
-
-                                            ;把内存段切换到内核
-    mov  ax, SelectorVram
+    pushad                                    ; 传参
+    
+    mov  ax, SelectorVram                     ; 把内存段切换到内核
     mov  ds, ax
     mov  es, ax 
-    mov  ecx, [0xfe4]                       ;获取内核堆栈指针
-    add  ecx, -40
-    mov  [ecx+32], esp                      ;保存应用程序堆栈指针
-    mov  [ecx+36], ss
-
-                                            ;将pushad 压入到堆栈的值复制到系统堆栈，也就是应用程序调用API时传入的参数
-    mov  edx, [esp]
-    mov  ebx, [esp+4]
-    mov  [ecx], edx
-    mov  [ecx+4], ebx
-    
-    mov  edx, [esp+8]
-    mov  ebx, [esp+12]
-    mov  [ecx+8], edx
-    mov  [ecx+12], ebx
-
-    mov  edx, [esp+16]
-    mov  ebx, [esp+20]
-    mov  [ecx+16], edx
-    mov  [ecx+20], ebx
-
-    mov  edx, [esp+24]
-    mov  ebx, [esp+28]
-    mov  [ecx+24], edx
-    mov  [ecx+28], ebx
-
-                                                ;把堆栈段切换到内核
-    mov  ax, SelectorStack
-    mov  ss, ax
-    mov  esp, ecx
-    sti
 
     call _kernel_api
+    cmp eax, 0
+    jne end_app
 
-                                                ;执行完内核代码后，把内存段和堆栈段重新切回到应用程序
-    mov  ecx, [esp+32]                          ;恢复应用程序的堆栈指针esp
-    mov  eax, [esp+36]                          ;恢复应用程序的堆栈段
-    cli
-    mov  ss, ax
-    mov  esp, ecx
     popad
-    pop  es
-    pop  ds
-    
-    iretd                                   ; cs 19*8 ip eax
+    pop es
+    pop ds
+    iretd
 
-_start_app:                                 ;void start_app(int eip, int cs,int esp, int ds)
-    cli
-    pushad
-    mov  eax, [esp+36]                      ; eip
-    mov  ecx, [esp+40]                      ; cs
-    mov  edx, [esp+44]                      ; esp
-    mov  ebx, [esp+48]                      ; ds
-
-    mov  [0xfe4], esp                       ; 暂时把应该返回的栈顶指针写死
-    mov  ds,  bx
-    mov  ss,  bx
-    mov  esp, edx
-
-    sti
-
-    push  ecx
-    push  eax
-    call  far [esp]
-
-    mov   ax, SelectorVram
-    mov   ds,  ax
-    mov   esp, [0xfe4]
-
-    mov   ax, SelectorStack
-    mov   ss, ax 
-    
+end_app:
+    mov esp, [eax]
     popad
     ret
+    
+_start_app:                                 ;void start_app(int eip, int cs,int esp, int ds, &(task->tss.esp0))
+    pushad
+
+    mov eax, [esp+52]
+    mov [eax], esp
+    mov [eax+4], ss
+
+    mov eax, [esp+36]                       ;eip
+    mov ecx, [esp+40]                       ;cs
+    mov edx, [esp+44]                       ;esp
+    mov ebx, [esp+48]                       ;ds
+    
+    mov  ds,  bx
+    mov  es,  bx
+
+    or   ecx, 3                             ;设置优先级
+    or   ebx, 3
+
+    push ebx
+    push edx
+    push ecx
+    push eax
+    retf
+
+SegCode32Len   equ  $ - LABEL_SEG_CODE32
 
 [SECTION .data]
 ALIGN 32
@@ -540,19 +482,14 @@ ALIGN 32
 MemChkBuf: times 256 db 0
 dwMCRNumber:   dd 0
 
-LABEL_SYSTEM_FONT:
-%include "fonts.inc"
-
-SystemFontLength equ $ - LABEL_SYSTEM_FONT
-
-[SECTION .gs]
-ALIGN 32
-[BITS 32]
-LABEL_STACK:
-  times 512  db 0
-  TopOfStack1  equ  $ - LABEL_STACK
-  times 512 db 0
-  TopOfStack2 equ $ - LABEL_STACK
-  LenOfStackSection equ $ - LABEL_STACK
+; [SECTION .gs]
+; ALIGN 32
+; [BITS 32]
+; LABEL_STACK:
+;   times 512  db 0
+;   TopOfStack1  equ  $ - LABEL_STACK
+;   times 512 db 0
+;   TopOfStack2 equ $ - LABEL_STACK
+;   LenOfStackSection equ $ - LABEL_STACK
 
 

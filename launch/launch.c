@@ -601,17 +601,16 @@ void cmd_hlt() {
     file_loadfile("abc.exe", &buffer);
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
-    set_segmdesc(gdt + 11, 0xfffff, buffer.pBuffer, 0x4098);
-    //把app和内核部分隔离开
-    char *q = memman_alloc_4k(memman, 64 * 1024);
-    set_segmdesc(gdt + 12, 64 * 1024 - 1, q, 0x4092);
-    start_app(0, 11 * 8, 64 * 1024, 12 * 8);
+    set_segmdesc(gdt + 11, 0xfffff, (int)buffer.pBuffer, 0x409a + 0x60);
+    // new memory
+    char *q = (char *)memman_alloc_4k(memman, 64 * 1024);
+    set_segmdesc(gdt + 12, 64 * 1024 - 1, (int)q, 0x4092 + 0x60);
+    struct TASK *task = task_now();
+    // task->tss.esp0 = 0;
+    start_app(0, 11 * 8, 64 * 1024, 12 * 8, &(task->tss.esp0));
 
-    char *pApp = (char *)(q + 0x100);
-    showString(shtctl, sht_back, 0, 179, COL8_FFFFFF, pApp);
-
-    memman_free_4k(memman, buffer.pBuffer, buffer.length);
-    memman_free_4k(memman, q, 64 * 1024);
+    memman_free_4k(memman, (unsigned int)buffer.pBuffer, buffer.length);
+    memman_free_4k(memman, (unsigned int)q, 64 * 1024);
 }
 
 void console_task(struct SHEET *sheet, int memtotal) {
@@ -1260,16 +1259,22 @@ void file_loadfile(char *name, struct Buffer *buffer) {
     memman_free(memman, s, 13);
 }
 
-void kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
+int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
                 int eax) {
+    struct TASK *task = task_now();
+
     if (edx == 1) {
         cons_putchar(eax & 0xff, 1);
     } else if (edx == 2) {
         cons_putstr((char *)(buffer.pBuffer + ebx));
+    } else if (edx == 4) {
+        return &(task->tss.esp0);
     }
+
+    return 0;
 }
 
-void intHandlerForException(int *esp) {
+int* intHandlerForException(int *esp) {
     g_Console.cur_x = 8;
     cons_putstr("INT 0D ");
     g_Console.cur_x = 8;
@@ -1277,5 +1282,8 @@ void intHandlerForException(int *esp) {
     cons_putstr("General Protected Exception");
     g_Console.cur_y += 16;
     g_Console.cur_x = 8;
-    return 1;
+
+    struct TASK *task = task_now();
+
+    return &(task->tss.esp0);
 }

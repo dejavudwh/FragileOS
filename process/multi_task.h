@@ -43,7 +43,7 @@ struct TASK {
 #define MAX_TASKS_LV 3
 #define MAX_TASKLEVELS 3
 #define TASK_GDT0 7
-#define SIZE_OF_TASK 120
+#define SIZE_OF_TASK 148
 
 /*
     优先级队列
