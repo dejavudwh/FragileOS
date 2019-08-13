@@ -11,7 +11,7 @@ hlt.bat: app.asm
 ckernel.asm: ckernel.o
 	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly ckernel.asm
 ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o 
-	cd kernel && ld -m i386pe -r ../launch/launch.o ../launch/win_sheet.o ../memory/mem_util.o ../interrupt/queue.o ../interrupt/timer.o ../process/multi_task.o ../util/string.o  -o ckernel.o
+	cd kernel && ld -m i386pe -r ../launch/launch.o ../launch/win_sheet.o ../memory/mem_util.o ../util/queue.o ../interrupt/timer.o ../process/multi_task.o ../util/string.o  -o ckernel.o
 launch.o: launch.c win_sheet.c win_sheet.h mem_util.c mem_util.h string.c string.h fat12.h
 	cd launch && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o launch.o launch.c	
 mem_util.o: mem_util.h mem_util.c 

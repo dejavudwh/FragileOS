@@ -288,6 +288,7 @@ timerHandler equ _timerHandler - $$
     mov  ax, SelectorVram
     mov  ds, ax
     mov  es, ax
+    mov  gs, ax
 
     call _intHandlerForTimer
     
@@ -466,6 +467,8 @@ AsmConsPutCharHandler equ _asm_cons_putchar - $$
     mov  ds, ax
     mov  es, ax 
     mov  gs, ax
+
+    sti
 
     call _kernel_api
     cmp eax, 0
