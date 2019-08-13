@@ -154,7 +154,9 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
 void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
                   char act);
 
-static int mx = 0, my = 0;
+static int mx = 0, my = 0, mmx = -1, mmy = -1;
+static struct SHEET *mouse_clicked_sht;
+
 static int xsize = 0, ysize = 0;
 static unsigned char *buf_back, buf_mouse[256];
 #define COLOR_INVISIBLE 99
@@ -264,7 +266,6 @@ void CMain(void) {
     task_run(task_a, 0, 0);
 
     struct SHEET *sht_cons = launch_console();
-    // switch task
 
     int data = 0;
     int count = 0;
@@ -275,7 +276,6 @@ void CMain(void) {
     int couser_c = COL8_000000;
 
     for (;;) {
-        //  io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
                 fifo8_status(&timerinfo) ==
             0) {
@@ -283,9 +283,6 @@ void CMain(void) {
         } else if (fifo8_status(&keyinfo) != 0) {
             io_sti();
             data = fifo8_get(&keyinfo);
-            // char *p = intToHexStr(data);
-            // showString(shtctl, sht_back, 0, pos, COL8_FFFFFF, p);
-            // pos += 16;
             transferScanCode(data);
             if (data == KEY_CONTROL && key_shift != 0 &&
                 task_cons->tss.ss0 != 0) {
@@ -294,6 +291,10 @@ void CMain(void) {
                 int addr_code32 = get_addr_code32();
                 task_cons->tss.eip = (int)kill_process - addr_code32;
                 io_sti();
+            }
+
+            if (data == 0x10) {
+                sheet_updown(shtctl, shtctl->sheets[1], shtctl->top - 1);
             }
 
             if (data == 0x0f) {
@@ -385,7 +386,8 @@ int isSpecialKey(int data) {
 }
 
 char transferScanCode(int data) {
-    if (data == 0x2a) {  // left shift key down
+    if (data == 0x2a) {
+        // left shift key down
         key_shift |= 1;
     }
 
@@ -959,15 +961,58 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
                      struct SHEET *sht_mouse) {
     char *vram = buf_back;
     unsigned char data = 0;
-
+    int j;
+    struct SHEET *sht = 0;
+    int x, y;
     io_sti();
     data = fifo8_get(&mouseinfo);
     if (mouse_decode(&mdec, data) != 0) {
         computeMousePosition(shtctl, sht_back, &mdec);
-
+        //拖动鼠标图层
         sheet_slide(shtctl, sht_mouse, mx, my);
         if ((mdec.btn & 0x01) != 0) {
-            sheet_slide(shtctl, shtMsgBox, mx - 80, my - 8);
+            if (mmx < 0) {
+                //遍历所有窗体
+                for (j = shtctl->top - 1; j > 0; j--) {
+                    sht = shtctl->sheets[j];
+                    x = mx - sht->vx0;
+                    y = my - sht->vy0;
+                    if (0 <= x && x < sht->bxsize && 0 <= y &&
+                        y < sht->bysize) {
+                        //不落在透明部分
+                        if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
+                            sheet_updown(shtctl, sht, shtctl->top - 1);
+                            if (3 <= x && x < sht->bxsize - 3 && 3 <= y &&
+                                y < 21) {
+                                mmx = mx;
+                                mmy = my;
+                                mouse_clicked_sht = sht;
+                            }
+
+                            if (sht->bxsize - 21 <= x && x < sht->bxsize - 5 &&
+                                5 <= y && y < 19 && sht->task != 0) {
+                                io_cli();
+                                sheet_free(shtctl, sht);
+                                int addr_code32 = get_addr_code32();
+                                sht->task->tss.eip =
+                                    (int)kill_process - addr_code32;
+                                io_sti();
+                            }
+                            break;
+                        }
+                    }
+                }
+            } else {
+                x = mx - mmx;
+                y = my - mmy;
+                sheet_slide(shtctl, mouse_clicked_sht,
+                            mouse_clicked_sht->vx0 + x,
+                            mouse_clicked_sht->vy0 + y);
+                mmx = mx;
+                mmy = my;
+            }
+        } else {
+            mmx = -1;
         }
     }
 }

@@ -1,3 +1,4 @@
+#include "../process/multi_task.h"
 #include "../memory/mem_util.h"
 #include "win_sheet.h"
 
@@ -36,6 +37,7 @@ struct SHEET *sheet_alloc(struct SHTCTL *ctl) {
             ctl->sheets[i] = sht;
             sht->flags = SHEET_USE;
             sht->height = -1;
+            sht->task = task_now();
             return sht;
         }
     }
