@@ -71,15 +71,19 @@ public class LinkAssembly {
 					curLabel = label;
 				}
 
-				if (line.contains(".text") || line.contains("global") || line.contains("extern") || line.contains("section") || line.contains(".bss:") && !line.contains(".rdata")) {
+				if (line.contains(".text") || line.contains("global") || line.contains("extern") || line.contains(".bss:") || (line.contains("section") && !line.contains(".rdata"))) {
 					continue;
 				}
 				
 				if (line.contains(".rdata")) {
 					do {
 						lineText = fileReader.readLine();
+						if (lineText == null) {
+							break;
+						}
 						lineText = subSemi(lineText);
-					} while (lineText.contains(".rdata") || !lineText.contains(":"));
+						// System.out.println(lineText);
+					} while (lineText.contains(".rdata") || !lineText.contains(":") || lineText.equals(""));
 				}	
 
 				//TODO Other variables need to be modified, for now
@@ -91,7 +95,10 @@ public class LinkAssembly {
 					lineText = lineText.replaceAll(".bss", "_task_timer");
 					// System.out.println(curLabel);
 				}
-
+				
+				if (lineText == null) {
+					break;
+				}
 				fileBuffer.append(lineText).append("\r\n");
 			}
 			
@@ -111,7 +118,6 @@ public class LinkAssembly {
 		} else if (args[0].equals("app.asm")){
 			fileName = "../api/app.asm";
 		}
-		System.out.println(args[0] +  " " +fileName);
         LinkAssembly la = new LinkAssembly(fileName);
         la.process();
     }

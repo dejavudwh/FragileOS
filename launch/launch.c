@@ -617,16 +617,13 @@ void cmd_hlt() {
     set_segmdesc(gdt + 11, 0xfffff, (int)buffer.pBuffer, 0x409a + 0x60);
     // new memory
     char *q = (char *)memman_alloc_4k(memman, 64 * 1024);
-    //  char *q = (char*) memman_alloc(memman, 1024);
+    buffer.pDataSeg = (unsigned char *)q;
     set_segmdesc(gdt + 12, 64 * 1024 - 1, (int)q, 0x4092 + 0x60);
-    // set_segmdesc(gdt+12, 1024 - 1,(int) q ,0x4092 + 0x60);
     struct TASK *task = task_now();
     task->tss.esp0 = 0;
     start_app(0, 11 * 8, 64 * 1024, 12 * 8, &(task->tss.esp0));
-    // start_app(0, 11*8, 1024, 12*8, &(task->tss.esp0));
     memman_free_4k(memman, (unsigned int)buffer.pBuffer, buffer.length);
     memman_free_4k(memman, (unsigned int)q, 64 * 1024);
-    // memman_free(memman, (unsigned int)q, 1024);
 }
 
 void console_task(struct SHEET *sheet, int memtotal) {
@@ -1278,13 +1275,32 @@ void file_loadfile(char *name, struct Buffer *buffer) {
 int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
                 int eax) {
     struct TASK *task = task_now();
+    struct SHEET *sht;
+    //第一次压栈的edi
+    int *reg = &eax + 1;
 
     if (edx == 1) {
         cons_putchar(eax & 0xff, 1);
     } else if (edx == 2) {
         cons_putstr((char *)(buffer.pBuffer + ebx));
     } else if (edx == 4) {
-        return &(task->tss.esp0);
+        task->tss.ss0 = 0; 
+        return &task_cons->tss.esp0;
+    } else if (edx == 5) {
+        sht = sheet_alloc(shtctl);
+        sheet_setbuf(sht, (char *)(ebx + buffer.pDataSeg), esi, edi, eax);
+        make_window8(shtctl, sht, (char *)(ecx + buffer.pBuffer), 0);
+        sheet_slide(shtctl, sht, 100, 50);
+        sheet_updown(shtctl, sht, 3);
+        reg[7] = (int)sht;
+    } else if (edx == 6) {
+        sht = (struct SHEET *)ebx;
+        showString(shtctl, sht, esi, edi, eax, (char *)(ebp + buffer.pBuffer));
+        sheet_refresh(shtctl, sht, esi, edi, esi + ecx * 8, edi + 16);
+    } else if (edx == 7) {
+        sht = (struct SHEET *)ebx;
+        boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+        sheet_refresh(shtctl, sht, eax, ecx, esi + 1, edi + 1);
     }
 
     return 0;

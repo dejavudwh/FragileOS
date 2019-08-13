@@ -13,5 +13,6 @@ struct FILEINFO {
 
 struct Buffer {
     unsigned char *pBuffer;
+    unsigned char *pDataSeg;
     int length;
 };

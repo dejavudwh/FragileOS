@@ -261,6 +261,11 @@ mouseHandler equ _mouseHandler - $$
      push fs
      push gs
 
+     mov  ax, SelectorVram
+     mov  ds, ax
+     mov  es, ax
+     mov  gs, ax
+
      call _intHandlerForMouse
 
      pop gs
@@ -362,21 +367,21 @@ _io_stihlt:
   RET
 
 _io_in8:
-  mov  edx, [esp + 4]
-  mov  eax, 0
-  in   al, dx
-  ret
+    mov  edx, [esp + 4]
+    mov  eax, 0
+    in   al, dx
+    ret
 
 _io_in16:
-  mov  edx, [esp + 4]
-  mov  eax, 0
-  in   ax, dx
-  ret
+    mov  edx, [esp + 4]
+    mov  eax, 0
+    in   ax, dx
+    ret
 
 _io_in32:
-  mov edx, [esp + 4]
-  in  eax, dx
-  ret
+    mov edx, [esp + 4]
+    in  eax, dx
+    ret
 
 _io_out8:
     mov edx, [esp + 4]
@@ -460,11 +465,13 @@ AsmConsPutCharHandler equ _asm_cons_putchar - $$
     mov  ax, SelectorVram                     ; 把内存段切换到内核
     mov  ds, ax
     mov  es, ax 
+    mov  gs, ax
 
     call _kernel_api
     cmp eax, 0
     jne end_app
 
+    popad
     popad
     pop es
     pop ds
