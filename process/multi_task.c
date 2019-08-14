@@ -17,13 +17,18 @@ void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
     return;
 }
 
-static struct TIMER *task_timer = 0;
-static struct TASKCTL *taskctl = 0;
+static struct TIMER *task_timer;
+static struct TASKCTL *taskctl;
+
+struct TASKCTL *get_taskctl() {
+    return taskctl;
+}
 
 void init_task_level(int level) {
     taskctl->level[level].running = 0;
     taskctl->level[level].now = 0;
-    for (int i = 0; i < MAX_TASKS_LV; i++) {
+    int i;
+    for (i = 0; i < MAX_TASKS_LV; i++) {
         taskctl->level[i].tasks[i] = 0;
     }
 }
@@ -34,7 +39,7 @@ struct TASK *task_init(struct MEMMAN *memman) {
     struct SEGMENT_DESCRIPTOR *gdt =
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
     taskctl = (struct TASKCTL *)memman_alloc_4k(memman, SIZE_OF_TASKCTL);
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < MAX_TASKS; i++) {
         taskctl->tasks0[i].flags = 0;
         taskctl->tasks0[i].sel = (TASK_GDT0 + i) * 8;
         set_segmdesc(gdt + TASK_GDT0 + i, 103, (int)&taskctl->tasks0[i].tss,
@@ -46,7 +51,7 @@ struct TASK *task_init(struct MEMMAN *memman) {
     }
 
     task = task_alloc();
-    task->flags = 2;
+    task->flags = 2;   
     task->priority = 100;
     task->level = 0;
     task_add(task);
@@ -58,18 +63,10 @@ struct TASK *task_init(struct MEMMAN *memman) {
     return task;
 }
 
-void task_add(struct TASK *task) {
-    struct TASKLEVEL *tl = &taskctl->level[task->level];
-    tl->tasks[tl->running] = task;
-    tl->running++;
-    task->flags = 2;
-    return;
-}
-
-struct TASK *task_alloc() {
+struct TASK *task_alloc(void) {
     int i;
     struct TASK *task;
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < MAX_TASKS; i++) {
         if (taskctl->tasks0[i].flags == 0) {
             task = &taskctl->tasks0[i];
             task->flags = 1;
@@ -120,34 +117,6 @@ void task_run(struct TASK *task, int level, int priority) {
     return;
 }
 
-void task_remove(struct TASK *task) {
-    int i;
-    struct TASKLEVEL *tl = &taskctl->level[task->level];
-    for (i = 0; i < tl->running; i++) {
-        if (tl->tasks[i] == task) {
-            tl->tasks[i] = 0;
-            break;
-        }
-    }
-
-    tl->running--;
-    if (i < tl->now) {
-        tl->now--;
-    }
-
-    if (tl->now >= tl->running) {
-        tl->now = 0;
-    }
-
-    task->flags = 1;
-
-    for (; i < tl->running; i++) {
-        tl->tasks[i] = tl->tasks[i + 1];
-    }
-
-    return;
-}
-
 void task_switch(void) {
     struct TASKLEVEL *tl = &taskctl->level[taskctl->now_lv];
     struct TASK *new_task, *now_task = tl->tasks[tl->now];
@@ -194,7 +163,48 @@ int task_sleep(struct TASK *task) {
     return rtask;
 }
 
-void task_switchsub() {
+struct TASK *task_now(void) {
+    struct TASKLEVEL *tl = &taskctl->level[taskctl->now_lv];
+    return tl->tasks[tl->now];
+}
+
+void task_add(struct TASK *task) {
+    struct TASKLEVEL *tl = &taskctl->level[task->level];
+    tl->tasks[tl->running] = task;
+    tl->running++;
+    task->flags = 2;
+    return;
+}
+
+void task_remove(struct TASK *task) {
+    int i;
+    struct TASKLEVEL *tl = &taskctl->level[task->level];
+    for (i = 0; i < tl->running; i++) {
+        if (tl->tasks[i] == task) {
+            tl->tasks[i] = 0;
+            break;
+        }
+    }
+
+    tl->running--;
+    if (i < tl->now) {
+        tl->now--;
+    }
+
+    if (tl->now >= tl->running) {
+        tl->now = 0;
+    }
+
+    task->flags = 1;
+
+    for (; i < tl->running; i++) {
+        tl->tasks[i] = tl->tasks[i + 1];
+    }
+
+    return;
+}
+
+void task_switchsub(void) {
     int i;
     for (i = 0; i < MAX_TASKLEVELS; i++) {
         if (taskctl->level[i].running > 0) {
@@ -204,11 +214,6 @@ void task_switchsub() {
 
     taskctl->now_lv = i;
     taskctl->lv_change = 0;
-}
-
-struct TASK *task_now() {
-    struct TASKLEVEL *tl = &taskctl->level[taskctl->now_lv];
-    return tl->tasks[tl->now];
 }
 
 void send_message(struct TASK *sender, struct TASK *receiver, int msg) {

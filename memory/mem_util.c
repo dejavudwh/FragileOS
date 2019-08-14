@@ -25,6 +25,9 @@ unsigned int memman_alloc(struct MEMMAN *man, unsigned int size) {
             man->free[i].size -= size;
             if (man->free[i].size == 0) {
                 man->frees--;
+                for (; i < man->frees; i++) {
+                    man->free[i] = man->free[i + 1];
+                }
             }
 
             return a;
@@ -43,30 +46,33 @@ int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) {
     }
 
     if (i > 0) {
-        if (man->free[i-1].addr + man->free[i-1].size == addr) {
-           man->free[i-1].size += size;
-           if (i < man->frees) {
-               if (addr + size == man->free[i].addr) {
-                   man->free[i-1].size += man->free[i].size;
-                   man->frees--;
-               }
-           }
-     
-           return 0;
+        if (man->free[i - 1].addr + man->free[i - 1].size == addr) {
+            man->free[i - 1].size += size;
+            if (i < man->frees) {
+                if (addr + size == man->free[i].addr) {
+                    man->free[i - 1].size += man->free[i].size;
+                    man->frees--;
+                    for (; i < man->frees; i++) {
+                        man->free[i] = man->free[i + 1];
+                    }
+                }
+            }
+
+            return 0;
         }
     }
 
     if (i < man->frees) {
         if (addr + size == man->free[i].addr) {
-           man->free[i].addr = addr;
-           man->free[i].size += size;
-           return 0;
+            man->free[i].addr = addr;
+            man->free[i].size += size;
+            return 0;
         }
     }
 
     if (man->frees < MEMMAN_FREES) {
         for (j = man->frees; j > i; j--) {
-            man->free[j] = man->free[j-1];
+            man->free[j] = man->free[j - 1];
         }
 
         man->frees++;
@@ -92,7 +98,7 @@ unsigned int memman_alloc_4k(struct MEMMAN *man, unsigned int size) {
 }
 
 int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size) {
-    int i ;
+    int i;
     size = (size + 0xfff) & 0xfffff000;
     i = memman_free(man, addr, size);
     return i;

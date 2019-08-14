@@ -25,15 +25,10 @@ Real              Virtual           Name
              146               146  _api_freetimer
              154               154  ___chkstk_ms
              155               155  _rand
-             178               178  _intToStr
-             1E5               1E5  _rere
-             1FA               1FA  __main
-             247               247  ?_001
-             253               253  ?_002
-             2F9               2F9  ?_003
-             30D               30D  ?_004
-             346               346  ?_005
-             371               371  _ran
-             375               375  ?_006
-             37B               37B  ?_007
+             178               178  __main
+             1FE               1FE  ?_001
+             281               281  ?_002
+             2BA               2BA  ?_003
+             2DC               2DC  _ran
+             2E0               2E0  ?_004
 

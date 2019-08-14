@@ -1,5 +1,12 @@
 #include "../util/queue.h"
 
+struct CONSOLE {
+    struct SHEET *sht;
+    int cur_x, cur_y, cur_c;
+    char s[2];
+    struct TIMER *timer;
+};
+
 /*
     用来描述TSS32：切换进程用来保存环境的数据结构
  */
@@ -37,13 +44,16 @@ struct TASK {
     int level;
     struct FIFO8 fifo;
     struct TSS32 tss;
+    struct CONSOLE console;
+    struct Buffer *pTaskBuffer;
 };
 
-#define MAX_TASKS 5
-#define MAX_TASKS_LV 3
-#define MAX_TASKLEVELS 3
+#define MAX_TASKS 10
+#define MAX_TASKS_LV 10
+#define MAX_TASKLEVELS 10
+
 #define TASK_GDT0 7
-#define SIZE_OF_TASK 148
+#define SIZE_OF_TASK 256
 
 /*
     优先级队列
@@ -76,7 +86,9 @@ struct TASKCTL {
  */
 struct TASK *task_init(struct MEMMAN *memman);
 
-#define SIZE_OF_TASKCTL (4 + 4 + 4 * MAX_TASKS + SIZE_OF_TASK * MAX_TASKS)
+#define SIZE_OF_TASKLEVEL (8 + 4 * MAX_TASKS_LV)
+#define SIZE_OF_TASKCTL \
+    (4 + 4 + SIZE_OF_TASKLEVEL * MAX_TASKLEVELS + SIZE_OF_TASK * MAX_TASKS)
 
 /*
     分配一个线程

@@ -18,7 +18,7 @@ LABEL_DESC_CODE32:  Descriptor        0,            0fffffh,           DA_C    |
 LABEL_DESC_VIDEO:   Descriptor        0B8000h,      0fffffh,           DA_DRW
 LABEL_DESC_VRAM:    Descriptor        0,            0fffffh,           DA_DRW  | DA_LIMIT_4K
 
-LABEL_DESC_STACK:   Descriptor        0,            0fffffh,           DA_DRWA | DA_32
+LABEL_DESC_STACK:   Descriptor        0,            0fffffh,           DA_DRWA | DA_32 | DA_LIMIT_4K
 LABEL_DESC_FONT:    Descriptor        0,            0fffffh,           DA_DRW  | DA_LIMIT_4K
 
 LABEL_DESC_6:       Descriptor        0,            0fffffh,           0409Ah
@@ -27,7 +27,7 @@ LABEL_DESC_8:       Descriptor        0,            0,                 0
 LABEL_DESC_9:       Descriptor        0,            0,                 0
 LABEL_DESC_10:      Descriptor        0,            0,                 0
 
-%rep  10
+%rep  20
 Descriptor 0, 0, 0
 %endrep
 
