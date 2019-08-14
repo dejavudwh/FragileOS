@@ -17,7 +17,7 @@ _api_putchar:
 _api_putstr:            ; void api_putstr(char* s)
   push ebx
   mov  edx, 2
-  mov  ebx, [ESP+8]
+  mov  ebx, [esp+8]
   int  02Dh
   pop  ebx
   ret
@@ -128,7 +128,7 @@ _api_linewin:           ; void api_linewin(int win, int x0, int y0, int x1, int 
   pop  edi
   ret
 
-_api_closewin:           ; void api_closewin(int win);
+_api_closewin:          ; void api_closewin(int win);
   push ebx
   mov  edx, 14
   mov  ebx, [esp+8]
@@ -136,10 +136,41 @@ _api_closewin:           ; void api_closewin(int win);
   pop  ebx
   ret
 
-_api_getkey:             ; int api_getkey(int mode)
+_api_getkey:            ; int api_getkey(int mode)
   mov  edx, 15
   mov  eax, [esp+4]     ; mode
   int  02Dh
+  ret
+
+_api_alloctimer:
+  mov edx, 16
+  int 02Dh
+  ret
+
+_api_inittimer:          ; void api_initimer(int timer, int data)
+  push ebx
+  mov  edx, 17
+  mov  ebx, [esp+8]
+  mov  eax, [esp+12]
+  int  02Dh
+  pop  ebx
+  ret
+
+_api_settimer:           ; void api_settimer(int timer, int time)
+  push ebx
+  mov  edx, 18
+  mov  ebx, [esp + 8]
+  mov  eax, [esp + 12]
+  int  02Dh
+  pop  ebx
+  ret
+
+_api_freetimer:          ; void api_freetimer(int timer)
+  push ebx
+  mov  edx, 19
+  mov  ebx, [esp + 8]
+  int  02Dh
+  pop  ebx
   ret
 
 ___chkstk_ms:

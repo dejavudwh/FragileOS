@@ -1,3 +1,4 @@
+
 #include "../fs/fat12.h"
 #include "../interrupt/timer.h"
 #include "../memory/mem_util.h"
@@ -155,8 +156,6 @@ void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
                   char act);
 
 static int mx = 0, my = 0, mmx = -1, mmy = -1;
-static struct SHEET *mouse_clicked_sht;
-
 static int xsize = 0, ysize = 0;
 static unsigned char *buf_back, buf_mouse[256];
 #define COLOR_INVISIBLE 99
@@ -166,6 +165,7 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
 static struct SHEET *shtMsgBox;
 static struct SHTCTL *shtctl;
 static struct SHEET *sht_back, *sht_mouse;
+static struct SHEET *mouse_clicked_sht;
 
 void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cur_x,
                 int cur_y, int cursor_c);
@@ -266,7 +266,6 @@ void CMain(void) {
     task_run(task_a, 0, 0);
 
     struct SHEET *sht_cons = launch_console();
-
     int data = 0;
     int count = 0;
     int i = 0;
@@ -386,7 +385,7 @@ int isSpecialKey(int data) {
 }
 
 char transferScanCode(int data) {
-    if (data == 0x2a) {
+    if (data == 0x2a) {  
         // left shift key down
         key_shift |= 1;
     }
@@ -800,7 +799,6 @@ int api_linewin(struct SHEET *sht, int x0, int y0, int x1, int y1, int col) {
         x += dx;
         y += dy;
     }
-    showString(shtctl, buf_back, 100, 200, COL8_FFFFFF, 'f');
 }
 
 int handle_keyboard(struct TASK *task, int eax, int *reg) {
@@ -818,6 +816,9 @@ int handle_keyboard(struct TASK *task, int eax, int *reg) {
         }
 
         i = fifo8_get(&task->fifo);
+        if (i >= 256) {
+            showString(shtctl, sht_back, 0, 176, COL8_FFFFFF, "keyboard");
+        }
         if (i <= 1) {
             timer_init(timer, &task->fifo, 1);
             timer_settime(timer, 50);
@@ -837,6 +838,7 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
     struct TASK *task = task_now();
     struct SHEET *sht;
     int *reg = &eax + 1;
+    int i = 0;
 
     if (edx == 1) {
         cons_putchar(eax & 0xff, 1);
@@ -854,7 +856,8 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
         reg[7] = (int)sht;
     } else if (edx == 6) {
         sht = (struct SHEET *)ebx;
-        showString(shtctl, sht, esi, edi, eax, (char *)(ebp + buffer.pBuffer));
+        // showString(shtctl, sht, esi, edi, eax, (char*)(ebp+buffer.pBuffer));
+        showString(shtctl, sht, esi, edi, eax, (char *)(ebp + buffer.pDataSeg));
         sheet_refresh(shtctl, sht, esi, edi, esi + ecx * 8, edi + 16);
     } else if (edx == 7) {
         sht = (struct SHEET *)ebx;
@@ -863,6 +866,7 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
     } else if (edx == 11) {
         sht = (struct SHEET *)ebx;
         sht->buf[sht->bxsize * edi + esi] = eax;
+        // sheet_refresh(shtctl, sht, esi, edi, esi + 1, edi + 1);
     } else if (edx == 12) {
         sht = (struct SHEET *)ebx;
         sheet_refresh(shtctl, sht, eax, ecx, esi, edi);
@@ -873,6 +877,14 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
         sheet_free(shtctl, (struct SHEET *)ebx);
     } else if (edx == 15) {
         handle_keyboard(task, eax, reg);
+    } else if (edx == 16) {
+        reg[7] = (int)timer_alloc();
+    } else if (edx == 17) {
+        timer_init((struct TIMER *)ebx, &task->fifo, eax + 256);
+    } else if (edx == 18) {
+        timer_settime((struct TIMER *)ebx, eax);
+    } else if (edx == 19) {
+        timer_free((struct TIMER *)ebx);
     }
 
     return 0;
@@ -957,6 +969,18 @@ void computeMousePosition(struct SHTCTL *shtctl, struct SHEET *sht,
     }
 }
 
+void showString(struct SHTCTL *shtctl, struct SHEET *sht, int x, int y,
+                char color, unsigned char *s) {
+    int begin = x;
+    int i = 0;
+    for (; *s != 0x00; s++) {
+        showFont8(sht->buf, sht->bxsize, x, y, color, systemFont + *s * 16);
+        x += 8;
+    }
+
+    sheet_refresh(shtctl, sht, begin, y, x, y + 16);
+}
+
 void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
                      struct SHEET *sht_mouse) {
     char *vram = buf_back;
@@ -968,18 +992,16 @@ void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
     data = fifo8_get(&mouseinfo);
     if (mouse_decode(&mdec, data) != 0) {
         computeMousePosition(shtctl, sht_back, &mdec);
-        //拖动鼠标图层
+
         sheet_slide(shtctl, sht_mouse, mx, my);
         if ((mdec.btn & 0x01) != 0) {
             if (mmx < 0) {
-                //遍历所有窗体
                 for (j = shtctl->top - 1; j > 0; j--) {
                     sht = shtctl->sheets[j];
                     x = mx - sht->vx0;
                     y = my - sht->vy0;
                     if (0 <= x && x < sht->bxsize && 0 <= y &&
                         y < sht->bysize) {
-                        //不落在透明部分
                         if (sht->buf[y * sht->bxsize + x] != sht->col_inv) {
                             sheet_updown(shtctl, sht, shtctl->top - 1);
                             if (3 <= x && x < sht->bxsize - 3 && 3 <= y &&
@@ -1023,18 +1045,6 @@ void initBootInfo(struct BOOTINFO *pBootInfo) {
     pBootInfo->screenY = 480;
 }
 
-void showString(struct SHTCTL *shtctl, struct SHEET *sht, int x, int y,
-                char color, unsigned char *s) {
-    int begin = x;
-    int i = 0;
-    for (; *s != 0x00; s++) {
-        showFont8(sht->buf, sht->bxsize, x, y, color, systemFont + *s * 16);
-        x += 8;
-    }
-
-    sheet_refresh(shtctl, sht, begin, y, x, y + 16);
-}
-
 void init_palette(void) {
     static unsigned char table_rgb[16 * 3] = {
         0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0xff, 0xff, 0x00,
@@ -1044,6 +1054,19 @@ void init_palette(void) {
     };
 
     set_palette(0, 15, table_rgb);
+    unsigned char table2[216 * 3];
+    int r, g, b;
+    for (b = 0; b < 6; b++) {
+        for (g = 0; g < 6; g++) {
+            for (r = 0; r < 6; r++) {
+                table2[(r + g * 6 + b * 36) * 3 + 0] = r * 51;
+                table2[(r + g * 6 + b * 36) * 3 + 1] = g * 51;
+                table2[(r + g * 6 + b * 36) * 3 + 2] = b * 51;
+            }
+        }
+    }
+
+    set_palette(16, 231, table2);
     return;
 }
 

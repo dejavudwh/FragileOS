@@ -1,23 +1,23 @@
 public class FAT12System {
-    private Floppy floppyWriter;
+ 	private Floppy floppyWriter;
 	private int beginSec;
 	private int fileHeaderCount = 0;
 	private byte[] buffer = new byte[512];
 	private int cylinder = 0;
 	
-	private short fileClusterNo = 0;  
-    private int fileContentCylinder = 7;
-	private int fileContentSector = 1;
+	private short  fileClusterNo = 0;  
+    private int  fileContentCylinder = 7;
+	private int  fileContentSector = 1;
 	
 	private static int SECTOR_SIZE = 512;
 	private static int CYLINDER_SECTOR = 18;
-
-    public FAT12System(Floppy disk, int  cylinder, int sec) {
+	
+    public FAT12System(Floppy disk, int cylinder, int sec) {
     	this.floppyWriter = disk;
     	this.beginSec = sec;
     	this.cylinder = cylinder;
     }
-
+    
     public void addHeader(FileHeader header) {
     	flashFileContent(header);
     	
@@ -35,27 +35,28 @@ public class FAT12System {
     	}
     	
     	fileHeaderCount++;
+    	
     }
     
     public void flashFileHeaders() {
     	floppyWriter.writeFloppy(Floppy.MagneticHead.MagneticHead0, cylinder, beginSec, buffer);
     }
-
-	private void flashFileContent(FileHeader header) {
-		if (header.getFileBuffer() == null) {
+    
+    private void flashFileContent(FileHeader header) {
+    	if (header.getFileBuffer() == null) {
     		return;
     	}
-
-		short sectors = (short) (header.getFileSize() / SECTOR_SIZE + 1);
+    	
+    	short sectors = (short) (header.getFileSize() / SECTOR_SIZE + 1);
     	
     	byte[] s = new byte[2];
-    	s[1] = (byte)(fileClusterNo >> 8);
+    	s[1] = (byte)(fileClusterNo >>8 );
     	s[0] = (byte)(fileClusterNo >> 0);
     	header.setFileClusterNo(s);
-
-		fileClusterNo += sectors;
+    	
+    	fileClusterNo += sectors;
     	byte[] buffer = header.getFileBuffer(); 
-		int pos = 0;
+    	int pos = 0;
     	while (sectors > 0) {
     		if (fileContentSector >= CYLINDER_SECTOR) {
     			fileContentSector = 1;
@@ -79,5 +80,5 @@ public class FAT12System {
     	    fileContentSector++;
     	    sectors--;
     	}
-	}
+    }
 }
