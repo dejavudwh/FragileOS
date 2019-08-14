@@ -55,6 +55,7 @@ struct TASK {
     // add stack record
     int cons_stack;
     struct SEGMENT_DESCRIPTOR ldt[2];
+    struct FILEHANDLE *fhandle;
 };
 
 #define MAX_TASKS 10
@@ -62,7 +63,7 @@ struct TASK {
 #define MAX_TASKLEVELS 10
 
 #define TASK_GDT0 7
-#define SIZE_OF_TASK 256
+#define SIZE_OF_TASK 264
 
 /*
     优先级队列

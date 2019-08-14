@@ -16,3 +16,9 @@ struct Buffer {
     unsigned char *pDataSeg;
     int length;
 };
+
+struct FILEHANDLE {
+    char *buf;
+    int size;
+    int pos;
+};

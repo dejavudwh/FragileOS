@@ -72,7 +72,8 @@ public class Loader {
     	header = new FileHeader();
     	header.setFileName("ijk");
     	header.setFileExt("txt");
-    	header.setFileSize(64);
+    	String content = "this is a text file with name ijk.txt";
+    	header.setFileContent(content.getBytes());
     	fileSys.addHeader(header);
     	
     	fileSys.flashFileHeaders();

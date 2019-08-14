@@ -147,7 +147,7 @@ _api_alloctimer:
   int 02Dh
   ret
 
-_api_inittimer:          ; void api_initimer(int timer, int data)
+_api_inittimer:         ; void api_initimer(int timer, int data)
   push ebx
   mov  edx, 17
   mov  ebx, [esp+8]
@@ -156,7 +156,7 @@ _api_inittimer:          ; void api_initimer(int timer, int data)
   pop  ebx
   ret
 
-_api_settimer:           ; void api_settimer(int timer, int time)
+_api_settimer:          ; void api_settimer(int timer, int time)
   push ebx
   mov  edx, 18
   mov  ebx, [esp + 8]
@@ -165,12 +165,59 @@ _api_settimer:           ; void api_settimer(int timer, int time)
   pop  ebx
   ret
 
-_api_freetimer:          ; void api_freetimer(int timer)
+_api_freetimer:         ; void api_freetimer(int timer)
   push ebx
   mov  edx, 19
   mov  ebx, [esp + 8]
   int  02Dh
   pop  ebx
+  ret
+
+_api_showstring:
+  push ebx
+  mov  edx, 20
+  int  02Dh
+  pop  ebx
+  ret
+
+_api_fopen:              ; int api_fopen(char *fname)
+  push ebx
+  mov edx, 21
+  mov ebx, [esp + 8]
+  int 02Dh
+  pop ebx
+  ret
+
+_api_close:              ; void api_close(int handle)
+  mov edx, 22
+  mov eax, [esp+4]
+  int 02Dh
+
+_api_fseek:              ; void api_fseek(int fhandle, int offset, int mode)
+  push ebx
+  mov edx, 23
+  mov eax, [esp+8]      ; fhandle
+  mov ecx, [esp+16]     ; mode
+  mov ebx, [esp+12]     ; offset
+  int 02Dh
+  pop ebx
+  ret
+
+_api_fsize:              ; int api_fsize(int fhandle, int mode)
+  mov edx, 24
+  mov eax, [esp+4]
+  mov ecx, [esp+8]
+  int 02Dh
+  ret
+
+_api_fread:              ; int api_fread(char *buf, int maxsize, int fhandle)
+  push ebx
+  mov edx, 25
+  mov eax, [esp+16]     ; fhandle
+  mov ecx, [esp+12]     ; maxsize
+  mov ebx, [esp+8]      ; buf
+  int 02Dh
+  pop ebx
   ret
 
 ___chkstk_ms:

@@ -23,12 +23,21 @@ Real              Virtual           Name
              122               122  _api_inittimer
              134               134  _api_settimer
              146               146  _api_freetimer
-             154               154  ___chkstk_ms
-             155               155  _rand
-             178               178  __main
-             1FE               1FE  ?_001
-             281               281  ?_002
-             2BA               2BA  ?_003
-             2DC               2DC  _ran
-             2E0               2E0  ?_004
+             154               154  _api_showstring
+             15E               15E  _api_fopen
+             16C               16C  _api_close
+             177               177  _api_fseek
+             18D               18D  _api_fsize
+             19D               19D  _api_fread
+             1B3               1B3  ___chkstk_ms
+             1B4               1B4  __main
+             209               209  ?_001
+             23D               23D  ?_002
+             24B               24B  ?_003
+             24C               24C  ?_004
+             2C3               2C3  ?_005
+             346               346  ?_006
+             37F               37F  ?_007
+             3A2               3A2  ?_008
+             3AA               3AA  ?_009
 

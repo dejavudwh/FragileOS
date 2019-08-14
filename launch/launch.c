@@ -187,10 +187,9 @@ int KEY_CONTROL = 0x1D;
 int current_console = 0;
 int console_count = 0;
 
-// change here
 int show_console_window = 1;
 
-void CMain(void) {
+void launch(void) {
     initBootInfo(&bootInfo);
 
     unsigned char *buf_win_b;
@@ -271,7 +270,6 @@ void CMain(void) {
     console_count++;
     sheet_slide(shtctl, sht_cons, 8, 2);
     sheet_updown(shtctl, sht_cons, 2);
-    // switch task
 
     int data = 0;
     int count = 0;
@@ -283,7 +281,6 @@ void CMain(void) {
     int last_console = 0;
 
     for (;;) {
-        //  io_cli();
         if (fifo8_status(&keyinfo) + fifo8_status(&mouseinfo) +
                 fifo8_status(&timerinfo) ==
             0) {
@@ -351,8 +348,8 @@ void CMain(void) {
 
                     stop_task_A = 1;
                     set_cursor(shtctl, shtMsgBox, cursor_x, 28, cursor_c);
-                }
-                // not active deleted console task
+                }  
+                // change here not active deleted console task
             } else if (isSpecialKey(data) == 0 && current_console_task != 0) {
                 fifo8_put(&(current_console_task->fifo), data);
 
@@ -412,7 +409,7 @@ int isSpecialKey(int data) {
 
 char transferScanCode(int data) {
     if (data == 0x2a) {
-        // left shift key down
+          // left shift key down
         key_shift |= 1;
     }
 
@@ -462,12 +459,10 @@ char transferScanCode(int data) {
     return c;
 }
 
-// change here
 int console_pos = 240;
 
 struct SHEET *launch_console(int i) {
     struct SHEET *sht_cons = 0;
-    // change here
     sht_cons = sheet_alloc(shtctl);
     unsigned char *buf_cons =
         (unsigned char *)memman_alloc_4k(memman, 256 * 165);
@@ -495,8 +490,6 @@ struct SHEET *launch_console(int i) {
     current_console_task = task_console;
 
     int addr_code32 = get_addr_code32();
-    // task_console->tss.ldtr = 0;
-    // task_console->tss.iomap = 0x40000000;
     task_console->tss.eip = (int)(console_task - addr_code32);
 
     task_console->tss.es = 0;
@@ -513,6 +506,15 @@ struct SHEET *launch_console(int i) {
 
     char *fifobuf = (char *)memman_alloc(memman, 128);
     fifo8_init(&task_console->fifo, 128, fifobuf, task_console);
+
+    /*
+    init file handles for task
+    */
+    struct FILEHANDLE fhandle[8];
+    for (i = 0; i < 8; i++) {
+        fhandle[i].buf = 0;
+    }
+    task_console->fhandle = fhandle;
 
     task_run(task_console, 1, 5);
 
@@ -713,20 +715,30 @@ void cmd_execute_program(char *file) {
         (struct SEGMENT_DESCRIPTOR *)get_addr_gdt();
     // select is multiply of 8, divided by 8 get the original value
     int code_seg = 21 + (task->sel - first_task_cons_selector) / 8;
-    int mem_seg = 30 + (task->sel - first_task_cons_selector) / 8;  // 22
+    int mem_seg = 30 + (task->sel - first_task_cons_selector) / 8;  // 22;
     set_segmdesc(task->ldt + 0, 0xfffff, (int)appBuffer->pBuffer,
                  0x409a + 0x60);
     // new memory
     char *q = (char *)memman_alloc_4k(memman, 64 * 1024);
     appBuffer->pDataSeg = (unsigned char *)q;
-    //  set_segmdesc(gdt + mem_seg, 64 * 1024 - 1,(int) q ,0x4092 + 0x60);
+
     set_segmdesc(task->ldt + 1, 64 * 1204 - 1, (int)q, 0x4092 + 0x60);
 
     task->tss.esp0 = 0;
     io_sti();
-    //    start_app(0, code_seg*8,64*1024, mem_seg*8, &(task->tss.esp0));
     start_app(0, 0 * 8 + 4, 64 * 1024, 1 * 8 + 4, &(task->tss.esp0));
     io_cli();
+    /*
+    close any file handles
+    */
+    int i = 0;
+    for (i = 0; i < 8; i++) {
+        if (task->fhandle[i].buf != 0) {
+            memman_free_4k(memman, (unsigned int)task->fhandle[i].buf,
+                           task->fhandle[i].size);
+            task->fhandle[i].buf = 0;
+        }
+    }
     memman_free_4k(memman, (unsigned int)appBuffer->pBuffer, appBuffer->length);
     memman_free_4k(memman, (unsigned int)q, 64 * 1024);
     memman_free(memman, (unsigned int)appBuffer, 16);
@@ -774,7 +786,6 @@ void console_task(struct SHEET *sheet, int memtotal) {
     int i, cursor_c = COL8_000000;
 
     int x = 0, y = 0;
-    // char *fifobuf = (char *)memman_alloc(memman, 128);
     char *cmdline = (char *)memman_alloc(memman, 30);
     char scanCodeBuf[32];
     int pos = 96;
@@ -784,8 +795,6 @@ void console_task(struct SHEET *sheet, int memtotal) {
     task->console.cur_x = 16;
     task->console.cur_y = 28;
     task->console.cur_c = -1;
-
-    // fifo8_init(&task->fifo, 128, fifobuf, task);
 
     timer = timer_alloc();
     timer_init(timer, &task->fifo, 1);
@@ -804,6 +813,7 @@ void console_task(struct SHEET *sheet, int memtotal) {
         task = task_now();
 
         if (fifo8_status(&task->fifo) == 0) {
+            // task_sleep(task_cons);
             io_sti();
         } else {
             i = fifo8_get(&task->fifo);
@@ -843,7 +853,7 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     cmd_mem(memtotal);
                 } else if (strcmp(cmdline, "cls") == 1) {
                     cmd_cls();
-                } else if (strcmp(cmdline, "color") == 1) {
+                } else if (strcmp(cmdline, "hlt") == 1) {
                     cmd_execute_program("abc.exe");
                 } else if (strcmp(cmdline, "dir") == 1) {
                     cmd_dir();
@@ -856,7 +866,8 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     cmd_start(scanCodeBuf);
                 } else if (strcmp(cmdline, "ncst") == 1) {
                     cmd_ncst(scanCodeBuf);
-                } else if (strcmp(cmdline, "crack") == 1) {
+                }  
+                else if (strcmp(cmdline, "crack") == 1) {
                     cmd_execute_program("crack.exe");
                 }
 
@@ -877,6 +888,7 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     cons_putchar(c, 1);
                 }
             }
+
 
             if (cursor_c >= 0 && task->console.sht != 0) {
                 set_cursor(shtctl, task->console.sht, task->console.cur_x,
@@ -983,7 +995,7 @@ int handle_keyboard(struct TASK *task, int eax, int *reg) {
     return 0;
 }
 
-//  add console closing function
+// change here add console closing function
 void close_constask(struct TASK *task) {
     task_sleep(task);
     // problem
@@ -1014,14 +1026,13 @@ void cmd_exit(struct TASK *cons_task) {
     io_sti();
 }
 
-int kernel_pos = 0;
-
 int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
                 int eax) {
     struct TASK *task = task_now();
     struct SHEET *sht = 0;
     int *reg = &eax + 1;
     int i = 0;
+    struct FILEHANDLE *fh = 0;
 
     if (edx == 1) {
         cons_putchar(eax & 0xff, 1);
@@ -1029,8 +1040,6 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
         cons_putstr((char *)(task->pTaskBuffer->pBuffer + ebx));
     } else if (edx == 4) {
         task->tss.ss0 = 0;
-
-        // return &(task->tss.esp0);
         return &task->tss.esp0;
     } else if (edx == 5) {
         sht = sheet_alloc(shtctl);
@@ -1066,7 +1075,6 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
         api_linewin(sht, eax, ecx, esi, edi, ebp);
     } else if (edx == 14) {
         sheet_free(shtctl, (struct SHEET *)ebx);
-        // change here
         cons_putstr((char *)(task->pTaskBuffer->pDataSeg + 0x123));
     } else if (edx == 15) {
         handle_keyboard(task, eax, reg);
@@ -1079,7 +1087,69 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
     } else if (edx == 19) {
         timer_free((struct TIMER *)ebx);
     }
-
+    /*
+    add file handling api
+    */
+    else if (edx == 21) {
+        for (i = 0; i < 8; i++) {
+            if (task->fhandle[i].buf == 0) {
+                break;
+            }
+        }
+        fh = &task->fhandle[i];
+        reg[7] = 0;
+        if (i < 8) {
+            struct Buffer buffer;
+            buffer.pBuffer = 0;
+            char *file_name = (char *)(task->pTaskBuffer->pBuffer + ebx);
+            file_loadfile(file_name, &buffer);
+            if (buffer.pBuffer != 0) {
+                reg[7] = (int)fh;
+                fh->buf = buffer.pBuffer;
+                fh->size = buffer.length;
+                fh->pos = 0;
+            }
+        }
+    } else if (edx == 22) {
+        fh = (struct FILEHANDLE *)eax;
+        memman_free_4k(memman, (unsigned int)fh->buf, fh->size);
+        fh->buf = 0;
+    } else if (edx == 23) {
+        fh = (struct FILEHANDLE *)eax;
+        if (ecx == 0) {
+            fh->pos = ebx;
+        } else if (ecx == 1) {
+            fh->pos += ebx;
+        } else if (ecx == 2) {
+            fh->pos = fh->size + ebx;
+        }
+        if (fh->pos < 0) {
+            fh->pos = 0;
+        }
+        if (fh->pos > fh->size) {
+            fh->pos = fh->size;
+        }
+    } else if (edx == 24) {
+        fh = (struct FILEHANDLE *)eax;
+        if (ecx == 0) {
+            reg[7] = fh->size;
+        } else if (ecx == 1) {
+            reg[7] = fh->pos;
+        } else if (ecx == 2) {
+            reg[7] = fh->pos - fh->size;
+        }
+    } else if (edx == 25) {
+        fh = (struct FILEHANDLE *)eax;
+        for (i = 0; i < ecx; i++) {
+            if (fh->pos == fh->size) {
+                break;
+            }
+            *((char *)(task->pTaskBuffer->pDataSeg + ebx + i)) =
+                fh->buf[fh->pos];
+            fh->pos++;
+        }
+        reg[7] = i;
+    }
     return 0;
 }
 
@@ -1095,6 +1165,7 @@ void cons_putchar(char c, char move) {
 }
 
 int cons_newline(int cursor_y, struct SHEET *sheet) {
+    //  here
     if (sheet == 0) {
         return;
     }
@@ -1670,10 +1741,13 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c) {
 void file_loadfile(char *name, struct Buffer *buffer) {
     struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG);
     char *s = (char *)memman_alloc(memman, 13);
-    s[12] = 0;
 
     while (finfo->name[0] != 0) {
         int k;
+        for (k = 0; k < 12; k++) {
+            s[k] = 0;
+        }
+
         for (k = 0; k < 8; k++) {
             if (finfo->name[k] != 0) {
                 s[k] = finfo->name[k];
