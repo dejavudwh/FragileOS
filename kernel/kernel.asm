@@ -27,7 +27,7 @@ LABEL_DESC_8:       Descriptor        0,            0,                 0
 LABEL_DESC_9:       Descriptor        0,            0,                 0
 LABEL_DESC_10:      Descriptor        0,            0,                 0
 
-%rep  20
+%rep  30
 Descriptor 0, 0, 0
 %endrep
 

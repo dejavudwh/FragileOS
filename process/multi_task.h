@@ -5,6 +5,7 @@ struct CONSOLE {
     int cur_x, cur_y, cur_c;
     char s[2];
     struct TIMER *timer;
+    char *cmdline;
 };
 
 /*
@@ -46,6 +47,9 @@ struct TASK {
     struct TSS32 tss;
     struct CONSOLE console;
     struct Buffer *pTaskBuffer;
+    struct SHEET *sht;
+    // add stack record
+    int cons_stack;
 };
 
 #define MAX_TASKS 10
