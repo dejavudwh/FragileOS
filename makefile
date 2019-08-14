@@ -1,13 +1,15 @@
-VPATH = ./boot:./kernel:./launch:./memory:./interrupt:./process:./util:./fs:./api
+VPATH = ./boot:./kernel:./launch:./memory:./interrupt:./process:./util:./fs:./api:./app
 
-FragileOS.img: boot.bat kernel.bat color.bat crack.bat
+FragileOS.img: boot.bat kernel.bat kaleidoscope.bat alienwars.bat crack.bat
 	cd simulationfloppy && java Loader
 boot.bat: boot.asm
 	cd boot && nasm -o boot.bat boot.asm
 kernel.bat: kernel.asm ckernel.asm
 	cd kernel && nasm -o kernel.bat kernel.asm	
-color.bat: app.asm
-	cd api && nasm -o color.bat api_call.asm		
+kaleidoscope.bat: kaleidoscope.asm kaleidoscope_c.asm
+	cd app && nasm -o kaleidoscope.bat kaleidoscope.asm		
+alienwars.bat: alienwars.asm alienwars_c.asm
+	cd app && nasm -o alienwars.bat alienwars.asm			
 ckernel.asm: ckernel.o
 	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly ckernel.asm
 ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o 
@@ -26,7 +28,11 @@ multi_task.o: multi_task.h multi_task.c
 	cd process && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o multi_task.o multi_task.c
 string.o: string.h string.c 
 	cd util && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o string.o string.c	
-app.asm: app.o
-	cd api && objconv -fnasm app.o -o app.asm && cd .. && cd simulationfloppy && java LinkAssembly app.asm	
-app.o : app.c
-	cd api && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o app.o app.c
+kaleidoscope_c.asm: kaleidoscope_c.o
+	cd app && objconv -fnasm kaleidoscope_c.o -o kaleidoscope_c.asm && cd .. && cd simulationfloppy && java LinkAssembly kaleidoscope_c.asm	
+kaleidoscope_c.o : kaleidoscope_c.c
+	cd app && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o kaleidoscope_c.o kaleidoscope_c.c
+alienwars_c.asm: alienwars_c.o
+	cd app && objconv -fnasm alienwars_c.o -o alienwars_c.asm && cd .. && cd simulationfloppy && java LinkAssembly alienwars_c.asm	
+alienwars_c.o : alienwars_c.c
+	cd app && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o alienwars_c.o alienwars_c.c

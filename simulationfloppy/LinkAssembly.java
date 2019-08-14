@@ -115,8 +115,8 @@ public class LinkAssembly {
 		String fileName = "";
 		if (args[0].equals("ckernel.asm")) {
 			fileName = "../kernel/ckernel.asm";
-		} else if (args[0].equals("app.asm")){
-			fileName = "../api/app.asm";
+		} else {
+			fileName = "../app/" + args[0];
 		}
         LinkAssembly la = new LinkAssembly(fileName);
         la.process();

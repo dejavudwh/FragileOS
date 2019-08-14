@@ -348,7 +348,7 @@ void launch(void) {
 
                     stop_task_A = 1;
                     set_cursor(shtctl, shtMsgBox, cursor_x, 28, cursor_c);
-                }  
+                }
                 // change here not active deleted console task
             } else if (isSpecialKey(data) == 0 && current_console_task != 0) {
                 fifo8_put(&(current_console_task->fifo), data);
@@ -409,7 +409,7 @@ int isSpecialKey(int data) {
 
 char transferScanCode(int data) {
     if (data == 0x2a) {
-          // left shift key down
+        // left shift key down
         key_shift |= 1;
     }
 
@@ -499,7 +499,7 @@ struct SHEET *launch_console(int i) {
     task_console->tss.fs = 0;
     task_console->tss.gs = 2 * 8;
     task_console->cons_stack = memman_alloc_4k(memman, 64 * 1024);
-    task_console->tss.esp = task_console->cons_stack + 1024 - 12;  // 8;
+    task_console->tss.esp = task_console->cons_stack + 64 * 1024 - 12;  // 8;
 
     *((int *)(task_console->tss.esp + 4)) = (int)sht_cons;
     *((int *)(task_console->tss.esp + 8)) = memman_total(memman);
@@ -853,8 +853,10 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     cmd_mem(memtotal);
                 } else if (strcmp(cmdline, "cls") == 1) {
                     cmd_cls();
-                } else if (strcmp(cmdline, "hlt") == 1) {
-                    cmd_execute_program("abc.exe");
+                } else if (strcmp(cmdline, "alienwar") == 1) {
+                    cmd_execute_program("alienwar.exe");
+                } else if (strcmp(cmdline, "circle") == 1) {
+                    cmd_execute_program("circle.exe");
                 } else if (strcmp(cmdline, "dir") == 1) {
                     cmd_dir();
                 } else if (strcmp(cmdline, "exit") == 1) {
@@ -866,8 +868,7 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     cmd_start(scanCodeBuf);
                 } else if (strcmp(cmdline, "ncst") == 1) {
                     cmd_ncst(scanCodeBuf);
-                }  
-                else if (strcmp(cmdline, "crack") == 1) {
+                } else if (strcmp(cmdline, "crack") == 1) {
                     cmd_execute_program("crack.exe");
                 }
 
@@ -888,7 +889,6 @@ void console_task(struct SHEET *sheet, int memtotal) {
                     cons_putchar(c, 1);
                 }
             }
-
 
             if (cursor_c >= 0 && task->console.sht != 0) {
                 set_cursor(shtctl, task->console.sht, task->console.cur_x,

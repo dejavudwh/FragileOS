@@ -1,12 +1,6 @@
 [SECTION .s32]
 BITS 32
 
-call __main
-
-mov  edx, 4             ; 返回内核
-int  02Dh
-
-
 _api_putchar:
   mov edx, 1
   mov al, [esp + 4]
@@ -221,5 +215,3 @@ _api_fread:              ; int api_fread(char *buf, int maxsize, int fhandle)
 
 ___chkstk_ms:
   ret
-
-%include "app.asm"
