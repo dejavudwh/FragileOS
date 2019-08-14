@@ -1,13 +1,13 @@
 VPATH = ./boot:./kernel:./launch:./memory:./interrupt:./process:./util:./fs:./api
 
-FragileOS.img: boot.bat kernel.bat hlt.bat
+FragileOS.img: boot.bat kernel.bat color.bat crack.bat
 	cd simulationfloppy && java Loader
 boot.bat: boot.asm
 	cd boot && nasm -o boot.bat boot.asm
 kernel.bat: kernel.asm ckernel.asm
 	cd kernel && nasm -o kernel.bat kernel.asm	
-hlt.bat: app.asm
-	cd api && nasm -o hlt.bat api_call.asm		
+color.bat: app.asm
+	cd api && nasm -o color.bat api_call.asm		
 ckernel.asm: ckernel.o
 	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly ckernel.asm
 ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o 
@@ -29,4 +29,4 @@ string.o: string.h string.c
 app.asm: app.o
 	cd api && objconv -fnasm app.o -o app.asm && cd .. && cd simulationfloppy && java LinkAssembly app.asm	
 app.o : app.c
-	cd api && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o app.o app.c	
+	cd api && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o app.o app.c

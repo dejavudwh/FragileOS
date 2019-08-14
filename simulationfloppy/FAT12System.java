@@ -16,6 +16,8 @@ public class FAT12System {
     	this.floppyWriter = disk;
     	this.beginSec = sec;
     	this.cylinder = cylinder;
+
+		fileContentCylinder = cylinder + 1;
     }
     
     public void addHeader(FileHeader header) {
@@ -50,7 +52,7 @@ public class FAT12System {
     	short sectors = (short) (header.getFileSize() / SECTOR_SIZE + 1);
     	
     	byte[] s = new byte[2];
-    	s[1] = (byte)(fileClusterNo >>8 );
+    	s[1] = (byte)(fileClusterNo >> 8);
     	s[0] = (byte)(fileClusterNo >> 0);
     	header.setFileClusterNo(s);
     	

@@ -15,7 +15,7 @@ public class Loader {
         writeFileToFloppy("../kernel/kernel.bat", false, 1, 1);
 
         //TODO 6 cylinders are only temporary values
-        FAT12System fileSys = new FAT12System(floppyDisk, 6, 1);
+        FAT12System fileSys = new FAT12System(floppyDisk, 7, 1);
     	FileHeader header = new FileHeader();
     	header.setFileName("abc");
     	header.setFileExt("exe");
@@ -24,10 +24,9 @@ public class Loader {
     	date[1] = 0x12;
     	header.setFileTime(date);
     	header.setFileDate(date);
-    	String s = "abc.exe";
-    	
+   	
     	byte[] bbuf = new byte[2048];
-    	File file = new File("../api/hlt.bat");
+    	File file = new File("../api/color.bat");
     	InputStream in = null;
     	try {
     		in = new FileInputStream(file);
@@ -47,12 +46,27 @@ public class Loader {
     	
     	header.setFileContent(bbuf);
     	fileSys.addHeader(header);
-    	
     	header = new FileHeader();
-    	header.setFileName("efg");
-    	header.setFileExt("sys");
-    	String s1 = "this is content in file efg.sys";
-    	header.setFileContent(s1.getBytes());
+    	header.setFileName("crack");
+    	header.setFileExt("exe");
+    	file = new File("../api/crack.bat");
+    	in = null;
+    	try {
+    		in = new FileInputStream(file);
+    		long len = file.length();
+    		
+    		int count = 0;
+    		while (count < file.length()) {
+    			bbuf[count] = (byte) in.read();
+    			count++;
+    		}
+    		
+    		in.close();
+    	}catch(IOException e) {
+    		e.printStackTrace();
+    		return;
+    	}
+    	header.setFileContent(bbuf);
     	fileSys.addHeader(header);
     	
     	header = new FileHeader();
@@ -62,8 +76,8 @@ public class Loader {
     	fileSys.addHeader(header);
     	
     	fileSys.flashFileHeaders();
-
-        floppyDisk.makeFloppy("../FragileOS.img");
+    	    	
+    	floppyDisk.makeFloppy("../FragileOS.img");
     }
 
     private void writeFileToFloppy(String pathName, boolean bootable, int cylinder, int beginSec) {

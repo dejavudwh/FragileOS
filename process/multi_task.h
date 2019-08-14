@@ -31,6 +31,10 @@ void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base,
                   int ar);
 
 #define AR_TSS32 0x0089
+#define AR_CODE32 0x409a
+
+#define AR_DATA 0x4092
+#define AR_LDT 0x0082
 
 /*
     描述进程
@@ -50,6 +54,7 @@ struct TASK {
     struct SHEET *sht;
     // add stack record
     int cons_stack;
+    struct SEGMENT_DESCRIPTOR ldt[2];
 };
 
 #define MAX_TASKS 10
