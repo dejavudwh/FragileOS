@@ -1,5 +1,5 @@
 ; Disassembly of file: alienwars_c.o
-; Thu Aug 15 09:55:58 2019
+; Thu Aug 15 10:30:34 2019
 ; Mode: 32 bits
 ; Syntax: YASM/NASM
 ; Instruction set: 80386

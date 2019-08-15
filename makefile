@@ -1,4 +1,4 @@
-VPATH = ./boot:./kernel:./launch:./memory:./interrupt:./process:./util:./fs:./api:./app
+VPATH = ./boot:./kernel:./launch:./memory:./interrupt:./process:./util:./fs:./api:./app:./gui
 
 FragileOS.img: boot.bat kernel.bat kaleidoscope.bat alienwars.bat crack.bat
 	cd simulationfloppy && java Loader
@@ -12,18 +12,20 @@ alienwars.bat: alienwars.asm alienwars_c.asm
 	cd app && nasm -o alienwars.bat alienwars.asm			
 ckernel.asm: ckernel.o
 	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly ckernel.asm
-ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o 
-	cd kernel && ld -m i386pe -r ../launch/launch.o ../launch/win_sheet.o ../memory/mem_util.o ../util/queue.o ../interrupt/timer.o ../process/multi_task.o ../util/string.o  -o ckernel.o
+ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o inthandler.o
+	cd kernel && ld -m i386pe -r ../launch/launch.o ../gui/win_sheet.o ../memory/mem_util.o ../util/queue.o ../interrupt/timer.o ../interrupt/inthandler.o ../process/multi_task.o ../util/string.o  -o ckernel.o
 launch.o: launch.c win_sheet.c win_sheet.h mem_util.c mem_util.h string.c string.h fat12.h
 	cd launch && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o launch.o launch.c	
 mem_util.o: mem_util.h mem_util.c 
 	cd memory && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o mem_util.o mem_util.c
 win_sheet.o: win_sheet.h win_sheet.c 
-	cd launch && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o win_sheet.o win_sheet.c
+	cd gui && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o win_sheet.o win_sheet.c
 queue.o: queue.h queue.c 
 	cd util && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o queue.o queue.c
 timer.o: timer.h timer.c 
 	cd interrupt && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o timer.o timer.c	
+inthandler.o: inthandler.h inthandler.c 
+	cd interrupt && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o inthandler.o inthandler.c		
 multi_task.o: multi_task.h multi_task.c 
 	cd process && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o multi_task.o multi_task.c
 string.o: string.h string.c 
