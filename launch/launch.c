@@ -555,7 +555,7 @@ void cmd_dir() {
             s[k] = finfo->ext[t];
             k++;
         }
-
+        s[k] = 0;
         showString(shtctl, task->console.sht, 16, task->console.cur_y,
                    COL8_FFFFFF, s);
         int offset = 16 + 8 * 15;
@@ -1149,7 +1149,10 @@ int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
             fh->pos++;
         }
         reg[7] = i;
+    } else if (edx == 26) {
+        reg[7] = task->console.cmdline;
     }
+
     return 0;
 }
 

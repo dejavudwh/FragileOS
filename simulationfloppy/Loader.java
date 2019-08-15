@@ -94,9 +94,9 @@ public class Loader {
     	fileSys.addHeader(header);
     	
     	header = new FileHeader();
-    	header.setFileName("ijk");
+    	header.setFileName("text");
     	header.setFileExt("txt");
-    	String content = "this is a text file with name ijk.txt";
+    	String content = "this is a text file with name text.txt";
     	header.setFileContent(content.getBytes());
     	fileSys.addHeader(header);
     	
