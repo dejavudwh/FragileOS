@@ -1,5 +1,5 @@
 
-#include "../interrupt/inthandler.h"
+#include "launch.h"
 
 struct MEMMAN *memman = (struct MEMMAN *)0x100000;
 int key_shift = 0;

@@ -2,29 +2,8 @@
 #include "../gui/win_sheet.h"
 #include "../interrupt/timer.h"
 #include "../memory/mem_util.h"
-#include "../process/multi_task.h"
 #include "../util/string.h"
-
-#define COL8_000000 0
-#define COL8_FF0000 1
-#define COL8_00FF00 2
-#define COL8_FFFF00 3
-#define COL8_0000FF 4
-#define COL8_FF00FF 5
-#define COL8_00FFFF 6
-#define COL8_FFFFFF 7
-#define COL8_C6C6C6 8
-#define COL8_840000 9
-#define COL8_008400 10
-#define COL8_848400 11
-#define COL8_000084 12
-#define COL8_840084 13
-#define COL8_008484 14
-#define COL8_848484 15
-
-#define PORT_KEYDAT 0x0060
-#define PIC_OCW2 0x20
-#define PIC1_OCW2 0xA0
+#include "../interrupt/inthandler.h"
 
 void load_ldt(short s);
 
@@ -54,15 +33,7 @@ void cmd_exit(struct TASK *cons_task);
 
 void cons_putchar(char chr, char move);
 
-
-struct BOOTINFO {
-    char *vgaRam;
-    short screenX, screenY;
-};
-
 void initBootInfo(struct BOOTINFO *pBootInfo);
-
-extern char systemFont[16];
 
 void showFont8(char *vram, int xsize, int x, int y, char c, char *font);
 
@@ -73,13 +44,6 @@ void putblock(char *vram, int vxsize, int pxsize, int pysize, int px0, int py0,
               char *buf, int bxsize);
 
 void init_mouse_cursor(char *mouse, char bc);
-
-struct MOUSE_DEC {
-    unsigned char buf[3], phase;
-    int x, y, btn;
-};
-
-
 
 char charToHexVal(char c);
 char *charToHexStr(unsigned char c);
@@ -112,10 +76,7 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
 void make_window8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
                   char act);
 
-
-
 void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c);
-
 
 void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cur_x,
                 int cur_y, int cursor_c);
@@ -126,7 +87,6 @@ void console_task(struct SHEET *sheet, int memtotal);
 void make_wtitle8(struct SHTCTL *shtctl, struct SHEET *sht, char *title,
                   char act);
 
-
 char transferScanCode(int data);
 
 int isSpecialKey(int data);
@@ -134,4 +94,3 @@ int isSpecialKey(int data);
 int cons_newline(int cursor_y, struct SHEET *sheet);
 
 void file_loadfile(char *fileName, struct Buffer *pBuffer);
-
