@@ -24,6 +24,23 @@
 - A console and some startup commands
 - A small game program
 
+# Build
+
+1. Compile Java files
+```
+> cd simulationfloppy
+
+> javac Loader.java
+
+> javac LinkAssembly
+```
+
+2. make
+
+```
+make -B
+```
+
 # Console command
 ### 1. start console
 ```
