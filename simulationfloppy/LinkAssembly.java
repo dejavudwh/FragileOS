@@ -16,6 +16,7 @@ public class LinkAssembly {
     private BufferedReader fileReader = null;
     StringBuffer fileBuffer = null;
 	HashMap<String, ArrayList<String>> funcMap = new HashMap<>();
+	boolean time = true;
 
     public LinkAssembly(String fileName) {
 		this.fileName = fileName;
@@ -91,16 +92,13 @@ public class LinkAssembly {
 							break;
 						}
 						lineText = subSemi(lineText);
-						// System.out.println(lineText);
 					} while (lineText.contains(".rdata") || !lineText.contains(":") || lineText.equals(""));
 				}	
 				
 				if (funcMap.get("timectl").contains(curLabel)) {
 					lineText = lineText.replaceAll(".bss", "_timerctl");
-					// System.out.println(curLabel);
 				} else if (funcMap.get("tasktimer").contains(curLabel)) {
 					lineText = lineText.replaceAll(".bss", "_task_timer");
-					// System.out.println(curLabel);
 				} else if (funcMap.get("keytable").contains(curLabel)) {
 					lineText = lineText.replaceAll(".bss", "_keytable");
 				} else if (funcMap.get("keyinfo").contains(curLabel)) {
@@ -112,8 +110,9 @@ public class LinkAssembly {
 				}
 
 				//Fix objconv disassembly bug
-				if (lineText.contains("call") && lineText.contains("_set_palette")) {
-					lineText = "mov     dword [esp+8H], _table_rgb.2345" + "\r\n" + lineText;
+				if (lineText.contains("call") && lineText.contains("_set_palette") && time) {
+					lineText = "mov     dword [esp+8H], _table_rgb.2359" + "\r\n" + lineText;
+					time = false;
 				}
 
 				fileBuffer.append(lineText).append("\r\n");

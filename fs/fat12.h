@@ -22,3 +22,5 @@ struct FILEHANDLE {
     int size;
     int pos;
 };
+
+void file_loadfile(char *fileName, struct Buffer *pBuffer);

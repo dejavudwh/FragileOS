@@ -1,7 +1,5 @@
 
-#include "../interrupt/inthandler.h"
 #include "launch.h"
-
 
 struct MEMMAN *memman = (struct MEMMAN *)0x100000;
 int key_shift = 0;
@@ -45,7 +43,7 @@ int console_pos = 240;
 extern char keytable[0x54];
 extern char keytable1[0x54];
 
-void launch(void) {
+void launch() {
     initBootInfo(&bootInfo);
 
     unsigned char *buf_win_b;
@@ -238,81 +236,6 @@ void launch(void) {
             }
         }
     }
-}
-
-void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cursor_x,
-                int cursor_y, int cursor_c) {
-    if (sheet == 0) {
-        return;
-    }
-
-    boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, cursor_y,
-             cursor_x + 7, cursor_y + 15);
-    sheet_refresh(shtctl, sheet, cursor_x, cursor_y, cursor_x + 8,
-                  cursor_y + 16);
-}
-
-int isSpecialKey(int data) {
-    transferScanCode(data);
-
-    if (data == 0x3a || data == 0x1d || data == 0xba || data == 0x2a ||
-        data == 0x36 || data == 0xaa || data == 0xb6) {
-        return 1;
-    }
-
-    return 0;
-}
-
-char transferScanCode(int data) {
-    if (data == 0x2a) {
-        // left shift key down
-        key_shift |= 1;
-    }
-
-    if (data == 0x36) {
-        // right shift key down
-        key_shift |= 2;
-    }
-
-    if (data == 0xaa) {
-        // left shift key up
-        key_shift &= ~1;
-    }
-
-    if (data == 0xb6) {
-        // right shift key up
-        key_shift &= ~2;
-    }
-
-    // caps lock
-    if (data == 0x3a) {
-        if (caps_lock == 0) {
-            caps_lock = 1;
-        } else {
-            caps_lock = 0;
-        }
-    }
-
-    if (data == 0x2a || data == 0x36 || data == 0xaa || data == 0xb6 ||
-        data >= 0x54 || data == 0x3a) {
-        return 0;
-    }
-
-    char c = 0;
-
-    if (key_shift == 0 && data < 0x54 && keytable[data] != 0) {
-        c = keytable[data];
-        if ('A' <= c && c <= 'Z' && caps_lock == 0) {
-            c += 0x20;
-        }
-
-    } else if (key_shift != 0 && data < 0x80 && keytable1[data] != 0) {
-        c = keytable1[data];
-    } else {
-        c = 0;
-    }
-
-    return c;
 }
 
 struct SHEET *launch_console(int i) {
@@ -849,37 +772,6 @@ int handle_keyboard(struct TASK *task, int eax, int *reg) {
     return 0;
 }
 
-// change here add console closing function
-void close_constask(struct TASK *task) {
-    task_sleep(task);
-    // problem
-    memman_free_4k(memman, task->cons_stack, 64 * 1024);
-    memman_free(memman, (int)task->fifo.buf, 128);
-    memman_free(memman, (int)task->console.cmdline, 30);
-    task->flags = 0;
-    current_console_task = 0;
-}
-
-void close_console(struct TASK *task) {
-    // struct TASK *task = sht->task;
-    timer_free(task->console.timer);
-
-    if (task->sht != 0) {
-        struct SHEET *sht = task->sht;
-        memman_free_4k(memman, (int)sht->buf, 256 * 165);
-        sheet_free(shtctl, sht);
-    }
-    close_constask(task);
-}
-
-void cmd_exit(struct TASK *cons_task) {
-    io_cli();
-    // send msg to keyboad queue of main process
-    // fifo8_put(&keyinfo, cons_task->sht - shtctl->sheets0 + 768);
-    fifo8_put(&keyinfo, 255);
-    io_sti();
-}
-
 int *kernel_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx,
                 int eax) {
     struct TASK *task = task_now();
@@ -1052,118 +944,32 @@ int cons_newline(int cursor_y, struct SHEET *sheet) {
     return cursor_y;
 }
 
-void wait_KBC_sendready() {
-    for (;;) {
-        if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0) {
-            break;
-        }
-    }
+void close_constask(struct TASK *task) {
+    task_sleep(task);
+    // problem
+    memman_free_4k(memman, task->cons_stack, 64 * 1024);
+    memman_free(memman, (int)task->fifo.buf, 128);
+    memman_free(memman, (int)task->console.cmdline, 30);
+    task->flags = 0;
+    current_console_task = 0;
 }
 
-void init_keyboard(void) {
-    wait_KBC_sendready();
-    io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
-    wait_KBC_sendready();
-    io_out8(PORT_KEYDAT, KBC_MODE);
-    return;
+void close_console(struct TASK *task) {
+    // struct TASK *task = sht->task;
+    timer_free(task->console.timer);
+
+    if (task->sht != 0) {
+        struct SHEET *sht = task->sht;
+        memman_free_4k(memman, (int)sht->buf, 256 * 165);
+        sheet_free(shtctl, sht);
+    }
+    close_constask(task);
 }
 
-void enable_mouse(struct MOUSE_DEC *mdec) {
-    wait_KBC_sendready();
-    io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
-    wait_KBC_sendready();
-    io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
-
-    mdec->phase = 0;
-    return;
-}
-
-int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat) {
-    if (mdec->phase == 0) {
-        if (dat == 0xfa) {
-            mdec->phase = 1;
-        }
-
-        return 0;
-    }
-
-    if (mdec->phase == 1) {
-        if ((dat & 0xc8) == 0x08) {
-            mdec->buf[0] = dat;
-            mdec->phase = 2;
-        }
-
-        return 0;
-    }
-
-    if (mdec->phase == 2) {
-        mdec->buf[1] = dat;
-        mdec->phase = 3;
-        return 0;
-    }
-
-    if (mdec->phase == 3) {
-        mdec->buf[2] = dat;
-        mdec->phase = 1;
-        mdec->btn = mdec->buf[0] & 0x07;
-        mdec->x = mdec->buf[1];
-        mdec->y = mdec->buf[2];
-        if ((mdec->buf[0] & 0x10) != 0) {
-            mdec->x |= 0xffffff00;
-        }
-
-        if ((mdec->buf[0] & 0x20) != 0) {
-            mdec->y |= 0xffffff00;
-        }
-
-        mdec->y = -mdec->y;
-        return 1;
-    }
-
-    return -1;
-}
-
-void file_loadfile(char *name, struct Buffer *buffer) {
-    struct FILEINFO *finfo = (struct FILEINFO *)(ADR_DISKIMG);
-    char *s = (char *)memman_alloc(memman, 13);
-
-    while (finfo->name[0] != 0) {
-        int k;
-        for (k = 0; k < 12; k++) {
-            s[k] = 0;
-        }
-
-        for (k = 0; k < 8; k++) {
-            if (finfo->name[k] != 0) {
-                s[k] = finfo->name[k];
-            } else {
-                break;
-            }
-        }
-
-        int t = 0;
-        s[k] = '.';
-        k++;
-        for (t = 0; t < 3; t++) {
-            s[k] = finfo->ext[t];
-            k++;
-        }
-
-        if (strcmp(name, s) == 1) {
-            buffer->pBuffer = (char *)memman_alloc_4k(memman, finfo->size);
-            buffer->length = finfo->size;
-            char *p = (char *)FILE_CONTENT_HEAD_ADDR;
-            p += finfo->clustno * DISK_SECTOR_SIZE;
-            int sz = finfo->size;
-            int t = 0;
-            for (t = 0; t < sz; t++) {
-                buffer->pBuffer[t] = p[t];
-            }
-            break;
-        }
-
-        finfo++;
-    }
-
-    memman_free(memman, (unsigned int)s, 13);
+void cmd_exit(struct TASK *cons_task) {
+    io_cli();
+    // send msg to keyboad queue of main process
+    // fifo8_put(&keyinfo, cons_task->sht - shtctl->sheets0 + 768);
+    fifo8_put(&keyinfo, 255);
+    io_sti();
 }

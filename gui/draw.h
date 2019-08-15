@@ -1,5 +1,5 @@
-#include "../process/multi_task.h"
 #include "../memory/mem_util.h"
+#include "../process/multi_task.h"
 #include "win_sheet.h"
 
 #define COL8_000000 0
@@ -63,5 +63,13 @@ struct SHEET *message_box(struct SHTCTL *shtctl, char *title);
 
 void show_mouse_info(struct SHTCTL *shtctl, struct SHEET *sht_back,
                      struct SHEET *sht_mouse);
+
+void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cur_x,
+                int cur_y, int cursor_c);
+
+void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgb);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x, int y,
+              int x0, int y0);
 
 extern void kill_process();

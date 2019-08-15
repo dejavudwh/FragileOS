@@ -18,3 +18,12 @@ void intHandlerFromC(char *esp);
 void intHandlerForMouse(char *esp);
 int *intHandlerForStackOverFlow(int *esp);
 int *intHandlerForException(int *esp);
+
+void init_keyboard(void);
+void enable_mouse(struct MOUSE_DEC *mdec);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
+void wait_KBC_sendready();
+
+char transferScanCode(int data);
+
+int isSpecialKey(int data);

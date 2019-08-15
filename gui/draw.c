@@ -474,3 +474,15 @@ char *intToHexStr(unsigned int d) {
 
     return str;
 }
+
+void set_cursor(struct SHTCTL *shtctl, struct SHEET *sheet, int cursor_x,
+                int cursor_y, int cursor_c) {
+    if (sheet == 0) {
+        return;
+    }
+
+    boxfill8(sheet->buf, sheet->bxsize, cursor_c, cursor_x, cursor_y,
+             cursor_x + 7, cursor_y + 15);
+    sheet_refresh(shtctl, sheet, cursor_x, cursor_y, cursor_x + 8,
+                  cursor_y + 16);
+}
