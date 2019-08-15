@@ -1,5 +1,13 @@
 #define MEMMAN_FREES 4096
 
+struct AddrRangeDesc {
+    unsigned int baseAddrLow;
+    unsigned int baseAddrHigh;
+    unsigned int lengthLow;
+    unsigned int lengthHigh;
+    unsigned int type;
+};
+
 /*
     内存块
     addr 内存起始地址

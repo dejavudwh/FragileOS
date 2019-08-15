@@ -12,8 +12,8 @@ alienwars.bat: alienwars.asm alienwars_c.asm
 	cd app && nasm -o alienwars.bat alienwars.asm			
 ckernel.asm: ckernel.o
 	cd kernel && objconv -fnasm ckernel.o -o ckernel.asm && cd .. && cd simulationfloppy && java LinkAssembly ckernel.asm
-ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o inthandler.o
-	cd kernel && ld -m i386pe -r ../launch/launch.o ../gui/win_sheet.o ../memory/mem_util.o ../util/queue.o ../interrupt/timer.o ../interrupt/inthandler.o ../process/multi_task.o ../util/string.o  -o ckernel.o
+ckernel.o: launch.o mem_util.o win_sheet.o queue.o timer.o multi_task.o string.o inthandler.o draw.o
+	cd kernel && ld -m i386pe -r ../launch/launch.o ../gui/draw.o ../gui/win_sheet.o ../memory/mem_util.o ../util/queue.o ../interrupt/timer.o ../interrupt/inthandler.o ../process/multi_task.o ../util/string.o  -o ckernel.o
 launch.o: launch.c win_sheet.c win_sheet.h mem_util.c mem_util.h string.c string.h fat12.h
 	cd launch && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o launch.o launch.c	
 mem_util.o: mem_util.h mem_util.c 
@@ -24,6 +24,8 @@ queue.o: queue.h queue.c
 	cd util && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o queue.o queue.c
 timer.o: timer.h timer.c 
 	cd interrupt && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o timer.o timer.c	
+draw.o: draw.h draw.c 
+	cd gui && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o draw.o draw.c		
 inthandler.o: inthandler.h inthandler.c 
 	cd interrupt && gcc -m32 -fno-asynchronous-unwind-tables -s -c -o inthandler.o inthandler.c		
 multi_task.o: multi_task.h multi_task.c 

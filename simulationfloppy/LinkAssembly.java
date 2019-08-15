@@ -42,6 +42,15 @@ public class LinkAssembly {
 		funcs2.add("_task_init");
 		funcs2.add("_task_switch");
 		funcMap.put("tasktimer", funcs2);
+
+		ArrayList<String> funcs3 = new ArrayList<>();
+		funcs3.add("_launch");
+		funcs3.add("_transferscancode");
+		funcMap.put("keytable", funcs3);
+
+		ArrayList<String> funcs4 = new ArrayList<>();
+		funcs4.add("_cmd_exit");
+		funcMap.put("keyinfo", funcs4);
 	}
 
 	public String subSemi(String line) {
@@ -71,7 +80,7 @@ public class LinkAssembly {
 					curLabel = label;
 				}
 
-				if (line.contains(".text") || line.contains("global") || line.contains("extern") || line.contains(".bss:") || (line.contains("section") && !line.contains(".rdata"))) {
+				if (line.contains(".data") || line.contains(".text") || line.contains("global") || line.contains("extern") || line.contains(".bss:") || (line.contains("section") && !line.contains(".rdata"))) {
 					continue;
 				}
 				
@@ -85,20 +94,28 @@ public class LinkAssembly {
 						// System.out.println(lineText);
 					} while (lineText.contains(".rdata") || !lineText.contains(":") || lineText.equals(""));
 				}	
-
-				//TODO Other variables need to be modified, for now
-				// lineText = lineText.replaceAll(".bss", "_timerctl");
+				
 				if (funcMap.get("timectl").contains(curLabel)) {
 					lineText = lineText.replaceAll(".bss", "_timerctl");
 					// System.out.println(curLabel);
 				} else if (funcMap.get("tasktimer").contains(curLabel)) {
 					lineText = lineText.replaceAll(".bss", "_task_timer");
 					// System.out.println(curLabel);
+				} else if (funcMap.get("keytable").contains(curLabel)) {
+					lineText = lineText.replaceAll(".bss", "_keytable");
+				} else if (funcMap.get("keyinfo").contains(curLabel)) {
+					lineText = lineText.replaceAll(".bss", "_keyinfo");
 				}
-				
+
 				if (lineText == null) {
 					break;
 				}
+
+				//Fix objconv disassembly bug
+				if (lineText.contains("call") && lineText.contains("_set_palette")) {
+					lineText = "mov     dword [esp+8H], _table_rgb.2345" + "\r\n" + lineText;
+				}
+
 				fileBuffer.append(lineText).append("\r\n");
 			}
 			
